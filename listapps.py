@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+#
+# This script will list all installed apps in a B2G instance.
+# App names can be passed to b2gperf.py.
+#
 import sys, os
 from marionette import Marionette
 

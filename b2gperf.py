@@ -1,18 +1,24 @@
+#!/usr/bin/env python
+#
+# To run this:
+# 1) Install a B2G build with Marionette enabled
+# 2) adb forward tcp:2828 tcp:2828
+# 3) b2gperf.py /path/to/gaia <app name>
+
 import sys, os
 from marionette import Marionette
 
-GAIA_DIR = "/home/luser/B2G/gaia"
-
-def measure_app_perf(marionette, app_name):
+def measure_app_perf(marionette, gaia_path, app_name):
     # Give apps a long timeout to launch
     marionette.set_script_timeout(60000)
     marionette.set_context(marionette.CONTEXT_CONTENT)
-    marionette.import_script(os.path.join(GAIA_DIR, "tests/atoms/gaia_apps.js"))
+    marionette.import_script(os.path.join(gaia_path, "tests/atoms/gaia_apps.js"))
     marionette.execute_script("GaiaApps.killAll()")
     #XXX: fixme: do something better
     marionette.execute_script("navigator.mozSettings.createLock().set({'lockscreen.enabled': false});")
     #XXX: send home button press?
-    marionette.import_script("/build/b2gperf/launchapp.js")
+    script_dir = os.path.dirname(__file__)
+    marionette.import_script(os.path.join(script_dir, "launchapp.js"))
     res = marionette.execute_async_script("launch_app('%s')" % app_name)
     if not res:
         print "Error launching app"
@@ -21,10 +27,14 @@ def measure_app_perf(marionette, app_name):
     marionette.execute_script("window.wrappedJSObject.WindowManager.kill('%s')" % res.get('origin'))
 
 def main(args):
-    app_name = args[0] if args else "Clock"
+    if len(args) < 1:
+        print >>sys.stderr, "Usage: b2gperf.py <path to gaia> [app name]"
+        sys.exit(1)
+    gaia_path = args[0]
+    app_name = args[1] if len(args) == 2 else "Clock"
     marionette = Marionette(host='localhost', port=2828)
     marionette.start_session()
-    measure_app_perf(marionette, app_name)
+    measure_app_perf(marionette, gaia_path, app_name)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
