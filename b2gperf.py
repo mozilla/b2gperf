@@ -8,7 +8,7 @@ def measure_app_perf(marionette, app_name):
     marionette.set_script_timeout(60000)
     marionette.set_context(marionette.CONTEXT_CONTENT)
     marionette.import_script(os.path.join(GAIA_DIR, "tests/atoms/gaia_apps.js"))
-    #marionette.execute_script("GaiaApps.killAll()")
+    marionette.execute_script("GaiaApps.killAll()")
     #XXX: fixme: do something better
     marionette.execute_script("navigator.mozSettings.createLock().set({'lockscreen.enabled': false});")
     #XXX: send home button press?

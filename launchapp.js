@@ -18,6 +18,6 @@ function launch_app(app_name) {
     windows.addEventListener('mozbrowserfirstpaint', firstpaint);
     origin = app.origin;
     start = performance.now();
-    app.launch(entry);
+    app.launch(entry || null);
   });
 }
