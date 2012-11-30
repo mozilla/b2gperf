@@ -24,6 +24,22 @@ def measure_app_perf(marionette, gaia_path, app_name):
         print "Error launching app"
         return
     print "time_to_paint: %f" % res.get('time_to_paint')
+    # try to get FPS
+    marionette.set_context(marionette.CONTEXT_CHROME)
+    marionette.import_script(os.path.join(script_dir, "fps.js"))
+    marionette.execute_script("""
+Components.utils.import("resource://gre/modules/Services.jsm");
+Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);
+""")
+    period = 5000 # ms
+    marionette.set_script_timeout(period + 1000)
+    try:
+        #TODO: do something useful with all this data
+        fps = marionette.execute_async_script("measure_fps(%d)" % period)
+        print fps[-1];
+    finally:
+        marionette.execute_script("""Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);""")
+    marionette.set_context(marionette.CONTEXT_CONTENT)
     marionette.execute_script("window.wrappedJSObject.WindowManager.kill('%s')" % res.get('origin'))
 
 def main(args):
