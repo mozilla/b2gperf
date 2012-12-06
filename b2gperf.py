@@ -21,10 +21,12 @@ Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);
     marionette.set_script_timeout(60000)
     marionette.set_context(marionette.CONTEXT_CONTENT)
     marionette.import_script(os.path.join(gaia_path, "tests/atoms/gaia_apps.js"))
-    marionette.execute_script("GaiaApps.killAll()")
-    #XXX: fixme: do something better?
-    marionette.execute_script("navigator.mozSettings.createLock().set({'lockscreen.enabled': false});")
-    #XXX: send home button press?
+    marionette.execute_async_script("GaiaApps.killAll()")
+    # Unlock
+    marionette.import_script(os.path.join(gaia_path, "tests/atoms/gaia_lock_screen.js"))
+    marionette.execute_async_script("GaiaLockScreen.unlock()")
+    # Return to home screen
+    marionette.execute_script("window.wrappedJSObject.dispatchEvent(new Event('home'));")
     marionette.import_script(os.path.join(script_dir, "launchapp.js"))
     res = marionette.execute_async_script("launch_app('%s')" % app_name)
     if not res:
@@ -36,15 +38,12 @@ Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);
     period = 5000 # ms
     sample_hz = 10
     marionette.set_script_timeout(period + 1000)
-    try:
-        #TODO: do something useful with all this data
-        fps = marionette.execute_async_script("measure_fps(%d,%d)" % (period, sample_hz))
+    #TODO: do something useful with all this data
+    fps = marionette.execute_async_script("measure_fps(%d,%d)" % (period, sample_hz))
+    if fps:
         print "FPS: %f/%f" % (fps.get('composition_fps'),
                               fps.get('transaction_fps'))
-    except:
-        pass
-    finally:
-        marionette.execute_script("""Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);""")
+    marionette.execute_script("""Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);""")
     marionette.set_context(marionette.CONTEXT_CONTENT)
     marionette.execute_script("window.wrappedJSObject.WindowManager.kill('%s')" % res.get('origin'))
 
