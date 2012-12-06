@@ -41,6 +41,8 @@ Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);
         fps = marionette.execute_async_script("measure_fps(%d,%d)" % (period, sample_hz))
         print "FPS: %f/%f" % (fps.get('composition_fps'),
                               fps.get('transaction_fps'))
+    except:
+        pass
     finally:
         marionette.execute_script("""Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);""")
     marionette.set_context(marionette.CONTEXT_CONTENT)
