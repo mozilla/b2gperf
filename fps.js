@@ -29,6 +29,7 @@ function measure_fps(period, sample_hz) {
             }
         }
         catch (e) {
+            clearInterval(i);
             marionetteScriptFinished(false);
         }
     }
