@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 #
-# To run this:
+# Before running this:
 # 1) Install a B2G build with Marionette enabled
 # 2) adb forward tcp:2828 tcp:2828
-# 3) b2gperf.py /path/to/gaia/atoms <app name>
 
+from optparse import OptionParser
 import os
-import sys
 
 from marionette import Marionette
 
-def measure_app_perf(marionette, gaia_atoms_path, app_names, iterations=30):
+def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30):
     # Enable FPS counter first so data is stable by the time we measure it.
     marionette.set_context(marionette.CONTEXT_CHROME)
     script_dir = os.path.dirname(__file__)
@@ -21,10 +20,10 @@ Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);
 """)
     marionette.set_script_timeout(60000)
     marionette.set_context(marionette.CONTEXT_CONTENT)
-    marionette.import_script(os.path.join(gaia_atoms_path, "gaia_apps.js"))
+    marionette.import_script(os.path.join(gaia_atoms, "gaia_apps.js"))
     marionette.execute_async_script("GaiaApps.killAll()")
     # Unlock
-    marionette.import_script(os.path.join(gaia_atoms_path, "gaia_lock_screen.js"))
+    marionette.import_script(os.path.join(gaia_atoms, "gaia_lock_screen.js"))
     marionette.execute_async_script("GaiaLockScreen.unlock()")
     # Return to home screen
     marionette.execute_script("window.wrappedJSObject.dispatchEvent(new Event('home'));")
@@ -54,15 +53,41 @@ Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);
             marionette.set_context(marionette.CONTEXT_CONTENT)
             marionette.execute_async_script("GaiaApps.kill('%s')" % app.get('origin'))
 
-def main(args):
-    if len(args) < 1:
-        print >>sys.stderr, "Usage: b2gperf.py <path to gaia atoms> [app name]"
-        sys.exit(1)
-    gaia_atoms_path = args[0]
-    app_names = args[1:] if len(args) > 1 else "Clock"
+
+def cli():
+    parser = OptionParser(usage='%prog [options] gaia_atoms_path app_name [app_name] ...')
+    parser.add_option('--iterations',
+        action='store',
+        type=int,
+        dest='iterations',
+        default=30,
+        metavar='INT',
+        help='number of times to launch each app (default %default)')
+
+    options, args = parser.parse_args()
+
+    if not args:
+        parser.print_usage()
+        parser.exit()
+
+    if not os.path.isdir(args[0]):
+        parser.print_usage()
+        print 'must specify valid path for gaia atoms'
+        parser.exit()
+
+    if len(args) < 2:
+        parser.print_usage()
+        print 'must specify at least one app name'
+        parser.exit()
+
     marionette = Marionette(host='localhost', port=2828)
     marionette.start_session()
-    measure_app_perf(marionette, gaia_atoms_path, app_names)
+    measure_app_perf(
+        marionette,
+        gaia_atoms=args[0],
+        app_names=args[1:],
+        iterations=options.iterations)
+
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    cli()
