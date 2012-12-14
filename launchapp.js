@@ -1,3 +1,5 @@
+"use strict";
+
 function launch_app(app_name) {
   GaiaApps.locateWithName(app_name, function(app, name, entry) {
     let start = null;
@@ -9,35 +11,30 @@ function launch_app(app_name) {
       start = performance.now();
       app.launch(entry || null);
 
-      function sendResponse(origin, end) {
-        let app = runningApps[origin];
-        marionetteScriptFinished({frame: app.frame.id,
-          src: app.frame.src,
-          name: app.name,
-          origin: origin,
-          time_to_paint: end - start});
-      }
-
       waitFor(
         function() {
+          let app = runningApps[origin];
+          let result = {frame: app.frame.id,
+                        src: app.frame.src,
+                        name: app.name,
+                        origin: origin};
+
           if (alreadyRunning) {
             // return the app's frame id
-            sendResponse(origin);
+            marionetteScriptFinished(result);
           }
           else {
             // wait until the new iframe sends the mozbrowserfirstpaint event
             let frame = runningApps[origin].frame;
             if (frame.dataset.unpainted) {
-              window.addEventListener('mozbrowserfirstpaint',
-                function firstpaint() {
-                  let end = performance.now();
-                  window.removeEventListener('mozbrowserfirstpaint',
-                    firstpaint);
-                  sendResponse(origin, end);
-                });
+              window.addEventListener('mozbrowserfirstpaint', function firstpaint() {
+                window.removeEventListener('mozbrowserfirstpaint', firstpaint);
+                result['time_to_paint'] = performance.now() - start;
+                marionetteScriptFinished(result);
+              });
             }
             else {
-              sendResponse(origin);
+              marionetteScriptFinished(result);
             }
           }
         },
