@@ -115,8 +115,8 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             protocol=required.get('protocol'),
             host=required.get('host'),
             project=required.get('project'),
-            oauth_key=required.get('oauth_key'),
-            oauth_secret=required.get('oauth_secret'),
+            oauth_key=required.get('oauth key'),
+            oauth_secret=required.get('oauth secret'),
             machine_name=required.get('machine name'),
             os='Firefox OS',
             os_version=required.get('os version'),
@@ -134,7 +134,8 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             dataset['test_build']['gecko_revision'] = required.get('gecko revision')
             dataset['test_build']['gaia_revision'] = required.get('gaia revision')
             print 'Submitting results to DataZilla: %s' % dataset
-            req.send(dataset)
+            response = req.send(dataset)
+            print 'Response: %s' % response.read()
 
 
 def cli():
