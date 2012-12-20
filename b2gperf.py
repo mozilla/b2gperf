@@ -134,7 +134,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             dataset['test_build']['gecko_revision'] = required.get('gecko revision')
             dataset['test_build']['gaia_revision'] = required.get('gaia revision')
             print 'Submitting results to DataZilla: %s' % dataset
-            #req.send(dataset)
+            req.send(dataset)
 
 
 def cli():
