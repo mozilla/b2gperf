@@ -14,8 +14,8 @@ function launch_app(app_name) {
       waitFor(
         function() {
           let app = runningApps[origin];
-          let result = {frame: app.frame.id,
-                        src: app.frame.src,
+          let result = {frame: app.frame.firstChild,
+                        src: app.iframe.src,
                         name: app.name,
                         origin: origin};
 
