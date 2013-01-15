@@ -25,7 +25,7 @@ function launch_app(app_name) {
           }
           else {
             // wait until the new iframe sends the mozbrowserfirstpaint event
-            let frame = runningApps[origin].frame;
+            let frame = runningApps[origin].frame.firstChild;
             if (frame.dataset.unpainted) {
               window.addEventListener('mozbrowserfirstpaint', function firstpaint() {
                 window.removeEventListener('mozbrowserfirstpaint', firstpaint);
