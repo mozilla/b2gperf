@@ -83,7 +83,6 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
 
     required = {
         'gecko revision':gecko_revision,
-        'gaia revision':gaia_revision,
         'protocol':datazilla_config['protocol'],
         'host':datazilla_config['host'],
         'project':datazilla_config['project'],
@@ -123,8 +122,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             platform='Gonk',
             build_name='B2G',
             version='prerelease',
-            revision='%s__%s' % (required.get('gecko revision')[:7],
-                                 required.get('gaia revision')[:7]),
+            revision=gaia_revision,
             branch='master',
             id=required.get('id'))
 
@@ -132,7 +130,6 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
         req.add_datazilla_result(res)
         for dataset in req.datasets():
             dataset['test_build']['gecko_revision'] = required.get('gecko revision')
-            dataset['test_build']['gaia_revision'] = required.get('gaia revision')
             print 'Submitting results to DataZilla: %s' % dataset
             response = req.send(dataset)
             print 'Response: %s' % response.read()
