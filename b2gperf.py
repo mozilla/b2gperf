@@ -28,7 +28,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
     # Get all settings
     marionette.import_script(os.path.join(gaia_atoms, 'gaia_data_layer.js'))
     settings = marionette.execute_async_script('return GaiaDataLayer.getSetting("*");')
-    mac_address = marionette.execute_script('return navigator.mozWifiManager.macAddress;')
+    mac_address = marionette.execute_script('return navigator.mozWifiManager && navigator.mozWifiManager.macAddress;')
     # Unlock
     marionette.import_script(os.path.join(gaia_atoms, 'gaia_lock_screen.js'))
     marionette.execute_async_script('GaiaLockScreen.unlock()')
@@ -88,7 +88,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
         'project':datazilla_config['project'],
         'oauth key':datazilla_config['oauth_key'],
         'oauth secret':datazilla_config['oauth_secret'],
-        'machine name':mac_address,
+        'machine name':mac_address or 'unknown',
         'os version':settings.get('deviceinfo.os'),
         'id':settings.get('deviceinfo.platform_build_id')}
 
