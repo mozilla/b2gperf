@@ -24,12 +24,17 @@ function launch_app(app_name) {
             marionetteScriptFinished(result);
           }
           else {
-            // wait until the new iframe sends the mozbrowserfirstpaint event
             let frame = runningApps[origin].frame.firstChild;
             if (frame.dataset.unpainted) {
+              // wait until the application frame sends the mozbrowserfirstpaint event
               window.addEventListener('mozbrowserfirstpaint', function firstpaint() {
                 window.removeEventListener('mozbrowserfirstpaint', firstpaint);
                 result['time_to_paint'] = performance.now() - start;
+              });
+              // wait until the new application frame sends the mozbrowserloadend event
+              window.addEventListener('mozbrowserloadend', function loadend() {
+                window.removeEventListener('mozbrowserloadend', loadend);
+                result['load_end'] = performance.now() - start;
                 marionetteScriptFinished(result);
               });
             }

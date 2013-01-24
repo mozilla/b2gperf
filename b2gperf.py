@@ -40,9 +40,12 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
     marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
     marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
 
-    results = {'time_to_paint': {}}
+    results = {
+        'time_to_paint': {},
+        'load_end': {}}
     for app_name in app_names:
         results['time_to_paint'][app_name] = []
+        results['load_end'][app_name] = []
         for i in range(iterations):
             print '%s: [%s/%s]' % (app_name, (i + 1), iterations)
             marionette.set_script_timeout(60000)
@@ -54,6 +57,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
                 print 'Error launching app'
                 return
             results['time_to_paint'][app_name].append(app.get('time_to_paint'))
+            results['load_end'][app_name].append(app.get('load_end'))
             # try to get FPS
             marionette.set_context(marionette.CONTEXT_CHROME)
             period = 5000  # ms
@@ -104,8 +108,8 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
         # Prepare DataZilla results
         test_suite = 'b2g_gaia_launch_perf'
         res = dzclient.DatazillaResult()
+        res.add_testsuite(test_suite)
         for metric in results.keys():
-            res.add_testsuite(test_suite)
             for app_name in results[metric].keys():
                 test_name = '_'.join([app_name, metric]).replace(' ', '_').lower()
                 res.add_test_results(test_suite, test_name, results[metric][app_name])
