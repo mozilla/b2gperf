@@ -25,12 +25,7 @@ function launch_app(app_name) {
           }
           else {
             let frame = runningApps[origin].frame.firstChild;
-            if (frame.dataset.unpainted) {
-              // wait until the application frame sends the mozbrowserfirstpaint event
-              window.addEventListener('mozbrowserfirstpaint', function firstpaint() {
-                window.removeEventListener('mozbrowserfirstpaint', firstpaint);
-                result['time_to_paint'] = performance.now() - start;
-              });
+            if ('unpainted' in frame.dataset) {
               // wait until the new application frame sends the mozbrowserloadend event
               window.addEventListener('mozbrowserloadend', function loadend() {
                 window.removeEventListener('mozbrowserloadend', loadend);

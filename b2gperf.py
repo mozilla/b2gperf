@@ -54,7 +54,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             if not app:
                 print 'Error launching app'
                 return
-            for metric in ['time_to_paint', 'time_to_load_end']:
+            for metric in ['time_to_load_end']:
                 if app.get(metric):
                     results.setdefault(metric, {}).setdefault(app_name, []).append(app.get(metric))
                 else:
