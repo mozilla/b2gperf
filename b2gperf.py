@@ -40,6 +40,8 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
     marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
     marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
 
+    time.sleep(60)  # wait for things to settle
+
     results = {}
     for app_name in app_names:
         for i in range(iterations):
