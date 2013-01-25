@@ -107,13 +107,12 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
         return
     else:
         # Prepare DataZilla results
-        test_suite = 'b2g_gaia_launch_perf'
         res = dzclient.DatazillaResult()
-        res.add_testsuite(test_suite)
         for metric in results.keys():
             for app_name in results[metric].keys():
-                test_name = '_'.join([app_name, metric]).replace(' ', '_').lower()
-                res.add_test_results(test_suite, test_name, results[metric][app_name])
+                test_suite = app_name.replace(' ', '_').lower()
+                res.add_testsuite(test_suite)
+                res.add_test_results(test_suite, metric, results[metric][app_name])
 
         req = dzclient.DatazillaRequest(
             protocol=required.get('protocol'),
