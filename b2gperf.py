@@ -40,12 +40,8 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
     marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
     marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
 
-    results = {
-        'time_to_paint': {},
-        'time_to_load_end': {}}
+    results = {}
     for app_name in app_names:
-        for metric in results.keys():
-            results[metric][app_name] = []
         for i in range(iterations):
             print '%s: [%s/%s]' % (app_name, (i + 1), iterations)
             marionette.set_script_timeout(60000)
@@ -56,8 +52,11 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             if not app:
                 print 'Error launching app'
                 return
-            for metric in results.keys():
-                results[metric][app_name].append(app.get(metric))
+            for metric in ['time_to_paint', 'time_to_load_end']:
+                if app.get(metric):
+                    results.setdefault(metric, {}).setdefault(app_name, []).append(app.get(metric))
+                else:
+                    print 'WARNING: %s missing %s metric in iteration %s' % (app_name, metric, i + 1)
             # try to get FPS
             marionette.set_context(marionette.CONTEXT_CHROME)
             period = 5000  # ms
