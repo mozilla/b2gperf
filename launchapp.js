@@ -34,7 +34,7 @@ function launch_app(app_name) {
               // wait until the new application frame sends the mozbrowserloadend event
               window.addEventListener('mozbrowserloadend', function loadend() {
                 window.removeEventListener('mozbrowserloadend', loadend);
-                result['load_end'] = performance.now() - start;
+                result['time_to_load_end'] = performance.now() - start;
                 marionetteScriptFinished(result);
               });
             }

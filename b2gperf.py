@@ -42,10 +42,10 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
 
     results = {
         'time_to_paint': {},
-        'load_end': {}}
+        'time_to_load_end': {}}
     for app_name in app_names:
-        results['time_to_paint'][app_name] = []
-        results['load_end'][app_name] = []
+        for metric in results.keys():
+            results[metric][app_name] = []
         for i in range(iterations):
             print '%s: [%s/%s]' % (app_name, (i + 1), iterations)
             marionette.set_script_timeout(60000)
@@ -56,8 +56,8 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             if not app:
                 print 'Error launching app'
                 return
-            results['time_to_paint'][app_name].append(app.get('time_to_paint'))
-            results['load_end'][app_name].append(app.get('load_end'))
+            for metric in results.keys():
+                results[metric][app_name].append(app.get(metric))
             # try to get FPS
             marionette.set_context(marionette.CONTEXT_CHROME)
             period = 5000  # ms
