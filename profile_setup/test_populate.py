@@ -20,16 +20,6 @@ class TestPopulateData(GaiaTestCase):
 
     _loading_overlay = ('id', 'loading-overlay')
 
-    def cleanUp(self):
-        # unlock
-        self.lockscreen.unlock()
-
-        # kill any open apps
-        self.apps.kill_all()
-
-        # reset to home screen
-        self.marionette.execute_script("window.wrappedJSObject.dispatchEvent(new Event('home'));")
-
     def add_contacts(self, count=1000):
         # launch the Contacts app
         self.app = self.apps.launch('Contacts')
