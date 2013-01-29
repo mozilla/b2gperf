@@ -91,6 +91,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
         'protocol':datazilla_config['protocol'],
         'host':datazilla_config['host'],
         'project':datazilla_config['project'],
+        'branch':datazilla_config['branch'],
         'oauth key':datazilla_config['oauth_key'],
         'oauth secret':datazilla_config['oauth_secret'],
         'machine name':mac_address or 'unknown',
@@ -127,7 +128,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             build_name='B2G',
             version='prerelease',
             revision=gaia_revision,
-            branch='master',
+            branch=required.get('branch'),
             id=required.get('id'))
 
         # Send DataZilla results
@@ -164,6 +165,11 @@ def cli():
                       dest='datazilla_project',
                       metavar='str',
                       help='datazilla project name')
+    parser.add_option('--dz-branch',
+                      action='store',
+                      dest='datazilla_branch',
+                      metavar='str',
+                      help='datazilla branch name')
     parser.add_option('--dz-key',
                       action='store',
                       dest='datazilla_key',
@@ -196,6 +202,7 @@ def cli():
         'protocol': datazilla_url.scheme,
         'host': datazilla_url.hostname,
         'project': options.datazilla_project,
+        'branch': options.datazilla_branch,
         'oauth_key': options.datazilla_key,
         'oauth_secret': options.datazilla_secret}
 
