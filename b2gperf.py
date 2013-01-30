@@ -57,11 +57,12 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             if not app:
                 print 'Error launching app'
                 return
-            for metric in ['time_to_load_end']:
+            for metric in ['cold_load_time']:
                 if app.get(metric):
                     results.setdefault(metric, {}).setdefault(app_name, []).append(app.get(metric))
                 else:
-                    print 'WARNING: %s missing %s metric in iteration %s' % (app_name, metric, i + 1)
+                    print '%s missing %s metric in iteration %s' % (app_name, metric, i + 1)
+                    return
             # try to get FPS
             marionette.set_context(marionette.CONTEXT_CHROME)
             period = 5000  # ms
