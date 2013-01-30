@@ -6,16 +6,19 @@
 
 from optparse import OptionParser
 import os
+from StringIO import StringIO
 import time
 from urlparse import urlparse
 import xml.dom.minidom
+from zipfile import ZipFile
 
 import dzclient
 from marionette import Marionette
+import mozdevice
 
 
 def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
-                     sources=None, datazilla_config=None):
+                     datazilla_config=None):
     # Enable FPS counter first so data is stable by the time we measure it.
     marionette.set_context(marionette.CONTEXT_CHROME)
     script_dir = os.path.dirname(__file__)
@@ -73,21 +76,26 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             marionette.execute_async_script('GaiaApps.kill("%s")' % app.get('origin'))
 
     submit_report = True
-    gecko_revision = None
-    gaia_revision = None
+    ancillary_data = {}
 
-    if sources:  # TODO use mozdevice to pull sources.xml
-        sources_xml = xml.dom.minidom.parse(sources)
-        for element in sources_xml.getElementsByTagName('project'):
-            path = element.getAttribute('path')
-            revision = element.getAttribute('revision')
-            if path == 'gecko':
-                gecko_revision = revision
-            elif path == 'gaia':
-                gaia_revision = revision
+    # get gaia revision
+    device_manager = mozdevice.DeviceManagerADB()
+    app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
+    with ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
+        ancillary_data['gaia_revision'] = f.read().splitlines()[0]
+
+    # get gecko and build revisions
+    sources_xml = xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
+    for element in sources_xml.getElementsByTagName('project'):
+        path = element.getAttribute('path')
+        revision = element.getAttribute('revision')
+        if path in ['gecko', 'build']:
+            ancillary_data['_'.join([path, 'revision'])] = revision
 
     required = {
-        'gecko revision':gecko_revision,
+        'gaia revision':ancillary_data.get('gaia_revision'),
+        'gecko revision':ancillary_data.get('gecko_revision'),
+        'build revision':ancillary_data.get('build_revision'),
         'protocol':datazilla_config['protocol'],
         'host':datazilla_config['host'],
         'project':datazilla_config['project'],
@@ -127,14 +135,14 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             platform='Gonk',
             build_name='B2G',
             version='prerelease',
-            revision=gaia_revision,
+            revision=ancillary_data.get('gaia_revision'),
             branch=required.get('branch'),
             id=required.get('id'))
 
         # Send DataZilla results
         req.add_datazilla_result(res)
         for dataset in req.datasets():
-            dataset['test_build']['gecko_revision'] = required.get('gecko revision')
+            dataset['test_build'].update(ancillary_data)
             print 'Submitting results to DataZilla: %s' % dataset
             response = req.send(dataset)
             print 'Response: %s' % response.read()
@@ -149,11 +157,6 @@ def cli():
                       default=30,
                       metavar='int',
                       help='number of times to launch each app (default: %default)')
-    parser.add_option('--sources',
-                      action='store',
-                      dest='sources',
-                      metavar='path',
-                      help='path to sources.xml containing project revisions')
     parser.add_option('--dz-url',
                       action='store',
                       dest='datazilla_url',
@@ -213,7 +216,6 @@ def cli():
         gaia_atoms=args[0],
         app_names=args[1:],
         iterations=options.iterations,
-        sources=options.sources,
         datazilla_config=datazilla_config)
 
 
