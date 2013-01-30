@@ -20,10 +20,8 @@ class TestPopulateData(GaiaTestCase):
 
     _loading_overlay = ('id', 'loading-overlay')
 
-    def add_contacts(self, count=1000):
-        # launch the Contacts app
-        self.app = self.apps.launch('Contacts')
-        self.wait_for_element_not_displayed(*self._loading_overlay)
+    def add_contacts(self, count=1):
+        self.marionette.switch_to_frame()
 
         print 'adding contacts'
 
@@ -33,8 +31,10 @@ class TestPopulateData(GaiaTestCase):
             contact = {'name': 'testcontact_%d' % x,
                        'tel': {'type': 'Mobile', 'value': '1-555-522-%d' % x}}
 
-            self.marionette.execute_script("GaiaDataLayer.insertContact(%s)" %
-                                           json.dumps(contact))
+            result = self.marionette.execute_async_script(
+                'return GaiaDataLayer.insertContact(%s);' % json.dumps(contact),
+                special_powers=True)
+            assert(result)
 
         self.marionette.refresh()
 
@@ -57,15 +57,15 @@ class TestPopulateData(GaiaTestCase):
 
         self.device_manager.removeFile(remote)
 
-    def add_music(self, count=500):
+    def add_music(self, count=1):
         print 'adding music'
         self.push_resource('MUS_0001.mp3', count=count, destination='')
 
-    def add_photos(self, count=700):
+    def add_photos(self, count=1):
         print 'adding photos'
         self.push_resource('IMG_fx.jpg', count=count, destination='DCIM/100MZLLA')
 
     def test_populate_data(self):
-        self.add_contacts()
-        self.add_music()
-        self.add_photos()
+        self.add_contacts(count=100)
+        self.add_music(count=500)
+        self.add_photos(count=700)
