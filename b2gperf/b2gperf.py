@@ -17,8 +17,8 @@ from marionette import Marionette
 import mozdevice
 
 
-def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
-                     datazilla_config=None):
+def measure_app_perf(marionette, gaia_atoms, app_names, delay=1,
+                     iterations=30, datazilla_config=None):
     # Enable FPS counter first so data is stable by the time we measure it.
     marionette.set_context(marionette.CONTEXT_CHROME)
     script_dir = os.path.dirname(__file__)
@@ -50,10 +50,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
         for i in range(iterations):
             print '%s: [%s/%s]' % (app_name, (i + 1), iterations)
             marionette.set_script_timeout(60000)
-            # TODO this sleep is needed due to bug 821766
-            # (and perhaps also to prevent panda board overheating...)
-            # Increased from 1 to 5 per note from Vivien.
-            time.sleep(5)
+            time.sleep(delay)
             app = marionette.execute_async_script('launch_app("%s")' % app_name)
             if not app:
                 print 'Error launching app'
@@ -95,18 +92,18 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             ancillary_data['_'.join([path, 'revision'])] = revision
 
     required = {
-        'gaia revision':ancillary_data.get('gaia_revision'),
-        'gecko revision':ancillary_data.get('gecko_revision'),
-        'build revision':ancillary_data.get('build_revision'),
-        'protocol':datazilla_config['protocol'],
-        'host':datazilla_config['host'],
-        'project':datazilla_config['project'],
-        'branch':datazilla_config['branch'],
-        'oauth key':datazilla_config['oauth_key'],
-        'oauth secret':datazilla_config['oauth_secret'],
-        'machine name':mac_address or 'unknown',
-        'os version':settings.get('deviceinfo.os'),
-        'id':settings.get('deviceinfo.platform_build_id')}
+        'gaia revision': ancillary_data.get('gaia_revision'),
+        'gecko revision': ancillary_data.get('gecko_revision'),
+        'build revision': ancillary_data.get('build_revision'),
+        'protocol': datazilla_config['protocol'],
+        'host': datazilla_config['host'],
+        'project': datazilla_config['project'],
+        'branch': datazilla_config['branch'],
+        'oauth key': datazilla_config['oauth_key'],
+        'oauth secret': datazilla_config['oauth_secret'],
+        'machine name': mac_address or 'unknown',
+        'os version': settings.get('deviceinfo.os'),
+        'id': settings.get('deviceinfo.platform_build_id')}
 
     for key, value in required.items():
         if not value:
@@ -152,6 +149,14 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
 
 def cli():
     parser = OptionParser(usage='%prog [options] gaia_atoms_path app_name [app_name] ...')
+    parser.add_option('--delay',
+                      action='store',
+                      type='float',
+                      dest='delay',
+                      default=1,  # TODO default is needed due to bug 821766
+                      # (and perhaps also to prevent panda board overheating...)
+                      metavar='float',
+                      help='duration (in seconds) to wait before each iteration')
     parser.add_option('--iterations',
                       action='store',
                       type=int,
@@ -217,6 +222,7 @@ def cli():
         marionette,
         gaia_atoms=args[0],
         app_names=args[1:],
+        delay=options.delay,
         iterations=options.iterations,
         datazilla_config=datazilla_config)
 
