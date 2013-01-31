@@ -52,7 +52,8 @@ def measure_app_perf(marionette, gaia_atoms, app_names, iterations=30,
             marionette.set_script_timeout(60000)
             # TODO this sleep is needed due to bug 821766
             # (and perhaps also to prevent panda board overheating...)
-            time.sleep(1)
+            # Increased from 1 to 5 per note from Vivien.
+            time.sleep(5)
             app = marionette.execute_async_script('launch_app("%s")' % app_name)
             if not app:
                 print 'Error launching app'
