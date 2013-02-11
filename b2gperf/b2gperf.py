@@ -13,11 +13,12 @@ import xml.dom.minidom
 from zipfile import ZipFile
 
 import dzclient
+import gaiatest
 from marionette import Marionette
 import mozdevice
 
 
-def measure_app_perf(marionette, gaia_atoms, app_names, delay=1,
+def measure_app_perf(marionette, app_names, delay=1,
                      iterations=30, datazilla_config=None):
     # Enable FPS counter first so data is stable by the time we measure it.
     marionette.set_context(marionette.CONTEXT_CHROME)
@@ -28,19 +29,11 @@ def measure_app_perf(marionette, gaia_atoms, app_names, delay=1,
         'Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);')
     marionette.set_script_timeout(60000)
     marionette.set_context(marionette.CONTEXT_CONTENT)
-    # Get all settings
-    marionette.import_script(os.path.join(gaia_atoms, 'gaia_data_layer.js'))
-    settings = marionette.execute_async_script('return GaiaDataLayer.getSetting("*");')
+    settings = gaiatest.GaiaData(marionette).all_settings  # get all settings
     mac_address = marionette.execute_script('return navigator.mozWifiManager && navigator.mozWifiManager.macAddress;')
-    # Unlock
-    marionette.import_script(os.path.join(gaia_atoms, 'gaia_lock_screen.js'))
-    marionette.execute_async_script('GaiaLockScreen.unlock()')
-    # Kill all running apps
-    marionette.import_script(os.path.join(gaia_atoms, 'gaia_apps.js'))
-    marionette.switch_to_frame()
-    marionette.execute_async_script('GaiaApps.killAll();')
-    # Return to home screen
-    marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
+    gaiatest.LockScreen(marionette).unlock()  # unlock
+    gaiatest.GaiaApps(marionette).kill_all()  # kill all running apps
+    marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
     marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
 
     time.sleep(60)  # wait for things to settle
@@ -148,7 +141,7 @@ def measure_app_perf(marionette, gaia_atoms, app_names, delay=1,
 
 
 def cli():
-    parser = OptionParser(usage='%prog [options] gaia_atoms_path app_name [app_name] ...')
+    parser = OptionParser(usage='%prog [options] app_name [app_name] ...')
     parser.add_option('--delay',
                       action='store',
                       type='float',
@@ -197,12 +190,7 @@ def cli():
         parser.print_usage()
         parser.exit()
 
-    if not os.path.isdir(args[0]):
-        parser.print_usage()
-        print 'must specify valid path for gaia atoms'
-        parser.exit()
-
-    if len(args) < 2:
+    if len(args) < 1:
         parser.print_usage()
         print 'must specify at least one app name'
         parser.exit()
@@ -220,8 +208,7 @@ def cli():
     marionette.start_session()
     measure_app_perf(
         marionette,
-        gaia_atoms=args[0],
-        app_names=args[1:],
+        app_names=args,
         delay=options.delay,
         iterations=options.iterations,
         datazilla_config=datazilla_config)
