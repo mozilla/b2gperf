@@ -44,12 +44,12 @@ def measure_app_perf(marionette, app_names, delay=1,
             print '%s: [%s/%s]' % (app_name, (i + 1), iterations)
             marionette.set_script_timeout(60000)
             time.sleep(delay)
-            app = marionette.execute_async_script('launch_app("%s")' % app_name)
-            if not app:
+            result = marionette.execute_async_script('launch_app("%s")' % app_name)
+            if not result:
                 raise Exception('Error launching app')
             for metric in ['cold_load_time']:
-                if app.get(metric):
-                    results.setdefault(metric, {}).setdefault(app_name, []).append(app.get(metric))
+                if result.get(metric):
+                    results.setdefault(metric, {}).setdefault(app_name, []).append(result.get(metric))
                 else:
                     raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
             # try to get FPS
@@ -63,7 +63,7 @@ def measure_app_perf(marionette, app_names, delay=1,
                                       fps.get('transaction_fps'))
             marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
             marionette.set_context(marionette.CONTEXT_CONTENT)
-            marionette.execute_async_script('GaiaApps.kill("%s")' % app.get('origin'))
+            gaiatest.GaiaApps(marionette).kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
 
     submit_report = True
     ancillary_data = {}
