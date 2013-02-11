@@ -46,14 +46,12 @@ def measure_app_perf(marionette, app_names, delay=1,
             time.sleep(delay)
             app = marionette.execute_async_script('launch_app("%s")' % app_name)
             if not app:
-                print 'Error launching app'
-                return
+                raise Exception('Error launching app')
             for metric in ['cold_load_time']:
                 if app.get(metric):
                     results.setdefault(metric, {}).setdefault(app_name, []).append(app.get(metric))
                 else:
-                    print '%s missing %s metric in iteration %s' % (app_name, metric, i + 1)
-                    return
+                    raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
             # try to get FPS
             marionette.set_context(marionette.CONTEXT_CHROME)
             period = 5000  # ms
