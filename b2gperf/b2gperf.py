@@ -38,6 +38,7 @@ def measure_app_perf(marionette, app_names, delay=1,
     marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
 
     submit_report = True
+    caught_exception = False
     ancillary_data = {}
 
     # get gaia revision
