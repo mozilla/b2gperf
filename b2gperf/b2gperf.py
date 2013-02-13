@@ -7,6 +7,7 @@
 from optparse import OptionParser
 import os
 from StringIO import StringIO
+import sys
 import time
 from urlparse import urlparse
 import xml.dom.minidom
@@ -35,35 +36,6 @@ def measure_app_perf(marionette, app_names, delay=1,
     gaiatest.GaiaApps(marionette).kill_all()  # kill all running apps
     marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
     marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
-
-    time.sleep(60)  # wait for things to settle
-
-    results = {}
-    for app_name in app_names:
-        for i in range(iterations):
-            print '%s: [%s/%s]' % (app_name, (i + 1), iterations)
-            marionette.set_script_timeout(60000)
-            time.sleep(delay)
-            result = marionette.execute_async_script('launch_app("%s")' % app_name)
-            if not result:
-                raise Exception('Error launching app')
-            for metric in ['cold_load_time']:
-                if result.get(metric):
-                    results.setdefault(metric, {}).setdefault(app_name, []).append(result.get(metric))
-                else:
-                    raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
-            # try to get FPS
-            marionette.set_context(marionette.CONTEXT_CHROME)
-            period = 5000  # ms
-            sample_hz = 10
-            marionette.set_script_timeout(period + 1000)
-            fps = marionette.execute_async_script('measure_fps(%d, %d)' % (period, sample_hz))
-            if fps:
-                print 'FPS: %f/%f' % (fps.get('composition_fps'),
-                                      fps.get('transaction_fps'))
-            marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
-            marionette.set_context(marionette.CONTEXT_CONTENT)
-            gaiatest.GaiaApps(marionette).kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
 
     submit_report = True
     ancillary_data = {}
@@ -102,40 +74,89 @@ def measure_app_perf(marionette, app_names, delay=1,
             print 'Missing required DataZilla field: %s' % key
 
     if not submit_report:
-        print 'Not submitting results to DataZilla'
-        return
-    else:
-        # Prepare DataZilla results
-        res = dzclient.DatazillaResult()
-        for metric in results.keys():
-            for app_name in results[metric].keys():
-                test_suite = app_name.replace(' ', '_').lower()
-                res.add_testsuite(test_suite)
-                res.add_test_results(test_suite, metric, results[metric][app_name])
+        print 'Reports will not be submitted to DataZilla'
 
-        req = dzclient.DatazillaRequest(
-            protocol=required.get('protocol'),
-            host=required.get('host'),
-            project=required.get('project'),
-            oauth_key=required.get('oauth key'),
-            oauth_secret=required.get('oauth secret'),
-            machine_name=required.get('machine name'),
-            os='Firefox OS',
-            os_version=required.get('os version'),
-            platform='Gonk',
-            build_name='B2G',
-            version='prerelease',
-            revision=ancillary_data.get('gaia_revision'),
-            branch=required.get('branch'),
-            id=required.get('id'))
+    time.sleep(60)  # wait for things to settle
 
-        # Send DataZilla results
-        req.add_datazilla_result(res)
-        for dataset in req.datasets():
-            dataset['test_build'].update(ancillary_data)
-            print 'Submitting results to DataZilla: %s' % dataset
-            response = req.send(dataset)
-            print 'Response: %s' % response.read()
+    for app_name in app_names:
+        try:
+            results = {}
+            success_counter = 0
+            fail_counter = 0
+            fail_threshold = int(iterations * 0.2)
+            for i in range(iterations + fail_threshold):
+                if success_counter == iterations:
+                    break
+                else:
+                    try:
+                        print '%s: [%s/%s]' % (app_name, (i + 1), iterations + fail_counter)
+                        marionette.set_script_timeout(60000)
+                        time.sleep(delay)
+                        result = marionette.execute_async_script('launch_app("%s")' % app_name)
+                        if not result:
+                            raise Exception('Error launching app')
+                        for metric in ['cold_load_time']:
+                            if result.get(metric):
+                                results.setdefault(metric, []).append(result.get(metric))
+                            else:
+                                raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
+                        # try to get FPS
+                        marionette.set_context(marionette.CONTEXT_CHROME)
+                        period = 5000  # ms
+                        sample_hz = 10
+                        marionette.set_script_timeout(period + 1000)
+                        fps = marionette.execute_async_script('measure_fps(%d, %d)' % (period, sample_hz))
+                        if fps:
+                            print 'FPS: %f/%f' % (fps.get('composition_fps'),
+                                                  fps.get('transaction_fps'))
+                        marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
+                        marionette.set_context(marionette.CONTEXT_CONTENT)
+                        gaiatest.GaiaApps(marionette).kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
+                        success_counter += 1
+                    except Exception, e:
+                        print e
+                        fail_counter += 1
+                        if fail_counter > fail_threshold:
+                            raise Exception('Exceeded failure threshold for gathering results!')
+
+            if submit_report:
+                # Prepare DataZilla results
+                res = dzclient.DatazillaResult()
+                for metric in results.keys():
+                    test_suite = app_name.replace(' ', '_').lower()
+                    res.add_testsuite(test_suite)
+                    res.add_test_results(test_suite, metric, results[metric])
+
+                req = dzclient.DatazillaRequest(
+                    protocol=required.get('protocol'),
+                    host=required.get('host'),
+                    project=required.get('project'),
+                    oauth_key=required.get('oauth key'),
+                    oauth_secret=required.get('oauth secret'),
+                    machine_name=required.get('machine name'),
+                    os='Firefox OS',
+                    os_version=required.get('os version'),
+                    platform='Gonk',
+                    build_name='B2G',
+                    version='prerelease',
+                    revision=ancillary_data.get('gaia_revision'),
+                    branch=required.get('branch'),
+                    id=required.get('id'))
+
+                # Send DataZilla results
+                req.add_datazilla_result(res)
+                for dataset in req.datasets():
+                    dataset['test_build'].update(ancillary_data)
+                    print 'Submitting results to DataZilla: %s' % dataset
+                    response = req.send(dataset)
+                    print 'Response: %s' % response.read()
+
+        except Exception, e:
+            print e
+            caught_exception = True
+
+    if caught_exception:
+        sys.exit(1)
 
 
 def cli():
