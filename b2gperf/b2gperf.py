@@ -67,14 +67,17 @@ class B2GPerf():
             print 'Reports will not be submitted to DataZilla'
 
     def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True):
+        settle_time = 60
         caught_exception = False
         script_dir = os.path.dirname(__file__)
 
-        time.sleep(60)  # wait for things to settle
+        if not restart:
+            time.sleep(settle_time)
 
         for app_name in app_names:
             if restart:
-                gaiatest.GaiaDevice.restart_b2g()
+                time.sleep(settle_time)
+                gaiatest.GaiaDevice(self.marionette).restart_b2g()
 
             gaiatest.LockScreen(self.marionette).unlock()  # unlock
             gaiatest.GaiaApps(self.marionette).kill_all()  # kill all running apps
