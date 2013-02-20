@@ -29,7 +29,7 @@ setup(name='b2gperf',
       author_email='tools@lists.mozilla.org',
       license='MPL',
       packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
-      package_data={'b2gperf': ['fps.js', 'launchapp.js']},
+      package_data={'b2gperf': ['launchapp.js']},
       include_package_data=True,
       zip_safe=False,
       entry_points="""

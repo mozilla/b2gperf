@@ -21,15 +21,7 @@ import mozdevice
 
 def measure_app_perf(marionette, app_names, delay=1,
                      iterations=30, datazilla_config=None):
-    # Enable FPS counter first so data is stable by the time we measure it.
-    marionette.set_context(marionette.CONTEXT_CHROME)
     script_dir = os.path.dirname(__file__)
-    marionette.import_script(os.path.join(script_dir, 'fps.js'))
-    marionette.execute_script(
-        'Components.utils.import("resource://gre/modules/Services.jsm");'
-        'Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);')
-    marionette.set_script_timeout(60000)
-    marionette.set_context(marionette.CONTEXT_CONTENT)
     settings = gaiatest.GaiaData(marionette).all_settings  # get all settings
     mac_address = marionette.execute_script('return navigator.mozWifiManager && navigator.mozWifiManager.macAddress;')
     gaiatest.LockScreen(marionette).unlock()  # unlock
@@ -91,7 +83,6 @@ def measure_app_perf(marionette, app_names, delay=1,
                 else:
                     try:
                         print '%s: [%s/%s]' % (app_name, (i + 1), iterations + fail_counter)
-                        marionette.set_script_timeout(60000)
                         time.sleep(delay)
                         result = marionette.execute_async_script('launch_app("%s")' % app_name)
                         if not result:
@@ -101,17 +92,6 @@ def measure_app_perf(marionette, app_names, delay=1,
                                 results.setdefault(metric, []).append(result.get(metric))
                             else:
                                 raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
-                        # try to get FPS
-                        marionette.set_context(marionette.CONTEXT_CHROME)
-                        period = 5000  # ms
-                        sample_hz = 10
-                        marionette.set_script_timeout(period + 1000)
-                        fps = marionette.execute_async_script('measure_fps(%d, %d)' % (period, sample_hz))
-                        if fps:
-                            print 'FPS: %f/%f' % (fps.get('composition_fps'),
-                                                  fps.get('transaction_fps'))
-                        marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
-                        marionette.set_context(marionette.CONTEXT_CONTENT)
                         gaiatest.GaiaApps(marionette).kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
                         success_counter += 1
                     except Exception, e:
