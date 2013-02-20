@@ -19,125 +19,132 @@ from marionette import Marionette
 import mozdevice
 
 
-def measure_app_perf(marionette, app_names, delay=1,
-                     iterations=30, datazilla_config=None):
-    script_dir = os.path.dirname(__file__)
-    settings = gaiatest.GaiaData(marionette).all_settings  # get all settings
-    mac_address = marionette.execute_script('return navigator.mozWifiManager && navigator.mozWifiManager.macAddress;')
-    gaiatest.LockScreen(marionette).unlock()  # unlock
-    gaiatest.GaiaApps(marionette).kill_all()  # kill all running apps
-    marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
-    marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
+class B2GPerf():
 
-    submit_report = True
-    caught_exception = False
-    ancillary_data = {}
+    def __init__(self, marionette, datazilla_config=None):
+        self.marionette = marionette
 
-    # get gaia revision
-    device_manager = mozdevice.DeviceManagerADB()
-    app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
-    with ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
-        ancillary_data['gaia_revision'] = f.read().splitlines()[0]
+        settings = gaiatest.GaiaData(self.marionette).all_settings  # get all settings
+        mac_address = self.marionette.execute_script('return navigator.mozWifiManager && navigator.mozWifiManager.macAddress;')
 
-    # get gecko and build revisions
-    sources_xml = xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
-    for element in sources_xml.getElementsByTagName('project'):
-        path = element.getAttribute('path')
-        revision = element.getAttribute('revision')
-        if path in ['gecko', 'build']:
-            ancillary_data['_'.join([path, 'revision'])] = revision
+        self.submit_report = True
+        self.ancillary_data = {}
 
-    required = {
-        'gaia revision': ancillary_data.get('gaia_revision'),
-        'gecko revision': ancillary_data.get('gecko_revision'),
-        'build revision': ancillary_data.get('build_revision'),
-        'protocol': datazilla_config['protocol'],
-        'host': datazilla_config['host'],
-        'project': datazilla_config['project'],
-        'branch': datazilla_config['branch'],
-        'oauth key': datazilla_config['oauth_key'],
-        'oauth secret': datazilla_config['oauth_secret'],
-        'machine name': mac_address or 'unknown',
-        'os version': settings.get('deviceinfo.os'),
-        'id': settings.get('deviceinfo.platform_build_id')}
+        # get gaia revision
+        device_manager = mozdevice.DeviceManagerADB()
+        app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
+        with ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
+            self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
 
-    for key, value in required.items():
-        if not value:
-            submit_report = False
-            print 'Missing required DataZilla field: %s' % key
+        # get gecko and build revisions
+        sources_xml = xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
+        for element in sources_xml.getElementsByTagName('project'):
+            path = element.getAttribute('path')
+            revision = element.getAttribute('revision')
+            if path in ['gecko', 'build']:
+                self.ancillary_data['_'.join([path, 'revision'])] = revision
 
-    if not submit_report:
-        print 'Reports will not be submitted to DataZilla'
+        self.required = {
+            'gaia revision': self.ancillary_data.get('gaia_revision'),
+            'gecko revision': self.ancillary_data.get('gecko_revision'),
+            'build revision': self.ancillary_data.get('build_revision'),
+            'protocol': datazilla_config['protocol'],
+            'host': datazilla_config['host'],
+            'project': datazilla_config['project'],
+            'branch': datazilla_config['branch'],
+            'oauth key': datazilla_config['oauth_key'],
+            'oauth secret': datazilla_config['oauth_secret'],
+            'machine name': mac_address or 'unknown',
+            'os version': settings.get('deviceinfo.os'),
+            'id': settings.get('deviceinfo.platform_build_id')}
 
-    time.sleep(60)  # wait for things to settle
+        for key, value in self.required.items():
+            if not value:
+                self.submit_report = False
+                print 'Missing required DataZilla field: %s' % key
 
-    for app_name in app_names:
-        try:
-            results = {}
-            success_counter = 0
-            fail_counter = 0
-            fail_threshold = int(iterations * 0.2)
-            for i in range(iterations + fail_threshold):
-                if success_counter == iterations:
-                    break
-                else:
-                    try:
-                        print '%s: [%s/%s]' % (app_name, (i + 1), iterations + fail_counter)
-                        time.sleep(delay)
-                        result = marionette.execute_async_script('launch_app("%s")' % app_name)
-                        if not result:
-                            raise Exception('Error launching app')
-                        for metric in ['cold_load_time']:
-                            if result.get(metric):
-                                results.setdefault(metric, []).append(result.get(metric))
-                            else:
-                                raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
-                        gaiatest.GaiaApps(marionette).kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
-                        success_counter += 1
-                    except Exception, e:
-                        print e
-                        fail_counter += 1
-                        if fail_counter > fail_threshold:
-                            raise Exception('Exceeded failure threshold for gathering results!')
+        if not self.submit_report:
+            print 'Reports will not be submitted to DataZilla'
 
-            if submit_report:
-                # Prepare DataZilla results
-                res = dzclient.DatazillaResult()
-                for metric in results.keys():
-                    test_suite = app_name.replace(' ', '_').lower()
-                    res.add_testsuite(test_suite)
-                    res.add_test_results(test_suite, metric, results[metric])
+    def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True):
+        caught_exception = False
+        script_dir = os.path.dirname(__file__)
 
-                req = dzclient.DatazillaRequest(
-                    protocol=required.get('protocol'),
-                    host=required.get('host'),
-                    project=required.get('project'),
-                    oauth_key=required.get('oauth key'),
-                    oauth_secret=required.get('oauth secret'),
-                    machine_name=required.get('machine name'),
-                    os='Firefox OS',
-                    os_version=required.get('os version'),
-                    platform='Gonk',
-                    build_name='B2G',
-                    version='prerelease',
-                    revision=ancillary_data.get('gaia_revision'),
-                    branch=required.get('branch'),
-                    id=required.get('id'))
+        time.sleep(60)  # wait for things to settle
 
-                # Send DataZilla results
-                req.add_datazilla_result(res)
-                for dataset in req.datasets():
-                    dataset['test_build'].update(ancillary_data)
-                    print 'Submitting results to DataZilla: %s' % dataset
-                    response = req.send(dataset)
-                    print 'Response: %s' % response.read()
+        for app_name in app_names:
+            if restart:
+                gaiatest.GaiaDevice.restart_b2g()
 
-        except Exception, e:
-            print e
-            caught_exception = True
+            gaiatest.LockScreen(self.marionette).unlock()  # unlock
+            gaiatest.GaiaApps(self.marionette).kill_all()  # kill all running apps
+            self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
+            self.marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
 
-    if caught_exception:
-        sys.exit(1)
+            try:
+                results = {}
+                success_counter = 0
+                fail_counter = 0
+                fail_threshold = int(iterations * 0.2)
+                for i in range(iterations + fail_threshold):
+                    if success_counter == iterations:
+                        break
+                    else:
+                        try:
+                            print '%s: [%s/%s]' % (app_name, (i + 1), iterations + fail_counter)
+                            time.sleep(delay)
+                            result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
+                            if not result:
+                                raise Exception('Error launching app')
+                            for metric in ['cold_load_time']:
+                                if result.get(metric):
+                                    results.setdefault(metric, []).append(result.get(metric))
+                                else:
+                                    raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
+                            gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
+                            success_counter += 1
+                        except Exception, e:
+                            print e
+                            fail_counter += 1
+                            if fail_counter > fail_threshold:
+                                raise Exception('Exceeded failure threshold for gathering results!')
+                if self.submit_report:
+                    # Prepare DataZilla results
+                    res = dzclient.DatazillaResult()
+                    for metric in results.keys():
+                        test_suite = app_name.replace(' ', '_').lower()
+                        res.add_testsuite(test_suite)
+                        res.add_test_results(test_suite, metric, results[metric])
+                    req = dzclient.DatazillaRequest(
+                        protocol=self.required.get('protocol'),
+                        host=self.required.get('host'),
+                        project=self.required.get('project'),
+                        oauth_key=self.required.get('oauth key'),
+                        oauth_secret=self.required.get('oauth secret'),
+                        machine_name=self.required.get('machine name'),
+                        os='Firefox OS',
+                        os_version=self.required.get('os version'),
+                        platform='Gonk',
+                        build_name='B2G',
+                        version='prerelease',
+                        revision=self.ancillary_data.get('gaia_revision'),
+                        branch=self.required.get('branch'),
+                        id=self.required.get('id'))
+
+                    # Send DataZilla results
+                    req.add_datazilla_result(res)
+                    for dataset in req.datasets():
+                        dataset['test_build'].update(self.ancillary_data)
+                        print 'Submitting results to DataZilla: %s' % dataset
+                        response = req.send(dataset)
+                        print 'Response: %s' % response.read()
+
+            except Exception, e:
+                print e
+                caught_exception = True
+
+        if caught_exception:
+            sys.exit(1)
 
 
 def cli():
@@ -157,6 +164,11 @@ def cli():
                       default=30,
                       metavar='int',
                       help='number of times to launch each app (default: %default)')
+    parser.add_option('--no-restart',
+                      action='store_false',
+                      dest='restart',
+                      default=True,
+                      help='do not restart B2G between tests')
     parser.add_option('--dz-url',
                       action='store',
                       dest='datazilla_url',
@@ -206,12 +218,12 @@ def cli():
 
     marionette = Marionette(host='localhost', port=2828)  # TODO command line option for address
     marionette.start_session()
-    measure_app_perf(
-        marionette,
+    b2gperf = B2GPerf(marionette, datazilla_config=datazilla_config)
+    b2gperf.measure_app_perf(
         app_names=args,
         delay=options.delay,
         iterations=options.iterations,
-        datazilla_config=datazilla_config)
+        restart=options.restart)
 
 
 if __name__ == '__main__':
