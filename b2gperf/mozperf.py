@@ -14,13 +14,16 @@ class MozPerfHandler(DatazillaPerfPoster):
             raw_results = json.loads(f.read())
 
         for app_results in raw_results:
-            results = {'mozPerfDuration': []}
             app_name = app_results.get('stats', {}).get('application')
             if not len(app_results.get('passes', ())):
                 print "no passing results for %s, skipping" % app_name
-            else:
-                for result in app_results.get('passes'):
-                    results['mozPerfDuration'].extend(result.get('mozPerfDurations'))
+                continue
+
+            results = {}
+            for result in app_results.get('passes'):
+                metric = result['title'].strip().replace(' ', '_')
+                results.setdefault(metric, []).extend(result.get('mozPerfDurations'))
+
             if self.submit_report:
                 self.post_to_datazilla(results, app_name)
             else:
