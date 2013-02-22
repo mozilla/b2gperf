@@ -5,8 +5,8 @@
 # 2) adb forward tcp:2828 tcp:2828
 
 from optparse import OptionParser
-import os
 from StringIO import StringIO
+import pkg_resources
 import sys
 import time
 from urlparse import urlparse
@@ -69,7 +69,6 @@ class B2GPerf():
     def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True):
         settle_time = 60
         caught_exception = False
-        script_dir = os.path.dirname(__file__)
 
         if not restart:
             time.sleep(settle_time)
@@ -82,7 +81,7 @@ class B2GPerf():
             gaiatest.LockScreen(self.marionette).unlock()  # unlock
             gaiatest.GaiaApps(self.marionette).kill_all()  # kill all running apps
             self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
-            self.marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
+            self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
 
             try:
                 results = {}
