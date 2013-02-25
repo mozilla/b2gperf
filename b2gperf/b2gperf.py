@@ -147,6 +147,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                 raise Exception('Exceeded failure threshold for gathering results!')
                 if self.submit_report:
                     self.post_to_datazilla(results, app_name)
+                else:
+                    print 'Results: %s' % results
 
             except Exception, e:
                 print e
