@@ -30,19 +30,20 @@ class DatazillaPerfPoster(object):
         self.submit_report = True
         self.ancillary_data = {}
 
-        # get gaia revision
-        device_manager = mozdevice.DeviceManagerADB()
-        app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
-        with ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
-            self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
+        if gaiatest.GaiaDevice(self.marionette).is_android_build:
+            # get gaia revision
+            device_manager = mozdevice.DeviceManagerADB()
+            app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
+            with ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
+                self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
 
-        # get gecko and build revisions
-        sources_xml = xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
-        for element in sources_xml.getElementsByTagName('project'):
-            path = element.getAttribute('path')
-            revision = element.getAttribute('revision')
-            if path in ['gecko', 'build']:
-                self.ancillary_data['_'.join([path, 'revision'])] = revision
+            # get gecko and build revisions
+            sources_xml = xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
+            for element in sources_xml.getElementsByTagName('project'):
+                path = element.getAttribute('path')
+                revision = element.getAttribute('revision')
+                if path in ['gecko', 'build']:
+                    self.ancillary_data['_'.join([path, 'revision'])] = revision
 
         self.required = {
             'gaia revision': self.ancillary_data.get('gaia_revision'),
