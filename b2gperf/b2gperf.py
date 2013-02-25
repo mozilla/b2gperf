@@ -13,6 +13,9 @@ from urlparse import urlparse
 import xml.dom.minidom
 from zipfile import ZipFile
 
+from progressbar import Counter
+from progressbar import ProgressBar
+
 import dzclient
 import gaiatest
 from marionette import Marionette
@@ -109,6 +112,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
             time.sleep(settle_time)
 
         for app_name in app_names:
+            progress = ProgressBar(widgets=['%s: ' % app_name, '[', Counter(), '/%d] ' % iterations], maxval=iterations)
+            progress.start()
+
             if restart:
                 time.sleep(settle_time)
                 gaiatest.GaiaDevice(self.marionette).restart_b2g()
@@ -128,7 +134,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
                         break
                     else:
                         try:
-                            print '%s: [%s/%s]' % (app_name, (i + 1), iterations + fail_counter)
                             time.sleep(delay)
                             result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
                             if not result:
@@ -144,7 +149,12 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             print e
                             fail_counter += 1
                             if fail_counter > fail_threshold:
+                                progress.maxval = success_counter
+                                progress.finish()
                                 raise Exception('Exceeded failure threshold for gathering results!')
+                        finally:
+                            progress.update(success_counter)
+                progress.finish()
                 if self.submit_report:
                     self.post_to_datazilla(results, app_name)
                 else:
