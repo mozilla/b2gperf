@@ -19,7 +19,7 @@ from marionette import Marionette
 import mozdevice
 
 
-class B2GPerf():
+class DatazillaPerfPoster(object):
 
     def __init__(self, marionette, datazilla_config=None):
         self.marionette = marionette
@@ -66,6 +66,40 @@ class B2GPerf():
         if not self.submit_report:
             print 'Reports will not be submitted to DataZilla'
 
+    def post_to_datazilla(self, results, app_name):
+        # Prepare DataZilla results
+        res = dzclient.DatazillaResult()
+        for metric in results.keys():
+            test_suite = app_name.replace(' ', '_').lower()
+            res.add_testsuite(test_suite)
+            res.add_test_results(test_suite, metric, results[metric])
+        req = dzclient.DatazillaRequest(
+            protocol=self.required.get('protocol'),
+            host=self.required.get('host'),
+            project=self.required.get('project'),
+            oauth_key=self.required.get('oauth key'),
+            oauth_secret=self.required.get('oauth secret'),
+            machine_name=self.required.get('machine name'),
+            os='Firefox OS',
+            os_version=self.required.get('os version'),
+            platform='Gonk',
+            build_name='B2G',
+            version='prerelease',
+            revision=self.ancillary_data.get('gaia_revision'),
+            branch=self.required.get('branch'),
+            id=self.required.get('id'))
+
+        # Send DataZilla results
+        req.add_datazilla_result(res)
+        for dataset in req.datasets():
+            dataset['test_build'].update(self.ancillary_data)
+            print 'Submitting results to DataZilla: %s' % dataset
+            response = req.send(dataset)
+            print 'Response: %s' % response.read()
+
+
+class B2GPerfRunner(DatazillaPerfPoster):
+
     def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True):
         settle_time = 60
         caught_exception = False
@@ -111,35 +145,7 @@ class B2GPerf():
                             if fail_counter > fail_threshold:
                                 raise Exception('Exceeded failure threshold for gathering results!')
                 if self.submit_report:
-                    # Prepare DataZilla results
-                    res = dzclient.DatazillaResult()
-                    for metric in results.keys():
-                        test_suite = app_name.replace(' ', '_').lower()
-                        res.add_testsuite(test_suite)
-                        res.add_test_results(test_suite, metric, results[metric])
-                    req = dzclient.DatazillaRequest(
-                        protocol=self.required.get('protocol'),
-                        host=self.required.get('host'),
-                        project=self.required.get('project'),
-                        oauth_key=self.required.get('oauth key'),
-                        oauth_secret=self.required.get('oauth secret'),
-                        machine_name=self.required.get('machine name'),
-                        os='Firefox OS',
-                        os_version=self.required.get('os version'),
-                        platform='Gonk',
-                        build_name='B2G',
-                        version='prerelease',
-                        revision=self.ancillary_data.get('gaia_revision'),
-                        branch=self.required.get('branch'),
-                        id=self.required.get('id'))
-
-                    # Send DataZilla results
-                    req.add_datazilla_result(res)
-                    for dataset in req.datasets():
-                        dataset['test_build'].update(self.ancillary_data)
-                        print 'Submitting results to DataZilla: %s' % dataset
-                        response = req.send(dataset)
-                        print 'Response: %s' % response.read()
+                    self.post_to_datazilla(results, app_name)
 
             except Exception, e:
                 print e
@@ -149,8 +155,50 @@ class B2GPerf():
             sys.exit(1)
 
 
+class dzOptionParser(OptionParser):
+    def __init__(self, **kwargs):
+        OptionParser.__init__(self, **kwargs)
+        self.add_option('--dz-url',
+                        action='store',
+                        dest='datazilla_url',
+                        default='https://datazilla.mozilla.org',
+                        metavar='str',
+                        help='datazilla server url (default: %default)')
+        self.add_option('--dz-project',
+                        action='store',
+                        dest='datazilla_project',
+                        metavar='str',
+                        help='datazilla project name')
+        self.add_option('--dz-branch',
+                        action='store',
+                        dest='datazilla_branch',
+                        metavar='str',
+                        help='datazilla branch name')
+        self.add_option('--dz-key',
+                        action='store',
+                        dest='datazilla_key',
+                        metavar='str',
+                        help='oauth key for datazilla server')
+        self.add_option('--dz-secret',
+                        action='store',
+                        dest='datazilla_secret',
+                        metavar='str',
+                        help='oauth secret for datazilla server')
+
+    def datazilla_config(self, options):
+        datazilla_url = urlparse(options.datazilla_url)
+        datazilla_config = {
+            'protocol': datazilla_url.scheme,
+            'host': datazilla_url.hostname,
+            'project': options.datazilla_project,
+            'branch': options.datazilla_branch,
+            'oauth_key': options.datazilla_key,
+            'oauth_secret': options.datazilla_secret}
+        return datazilla_config
+
+
 def cli():
-    parser = OptionParser(usage='%prog [options] app_name [app_name] ...')
+    parser = dzOptionParser(usage='%prog [options] app_name [app_name] ...')
     parser.add_option('--delay',
                       action='store',
                       type='float',
@@ -171,32 +219,6 @@ def cli():
                       dest='restart',
                       default=True,
                       help='do not restart B2G between tests')
-    parser.add_option('--dz-url',
-                      action='store',
-                      dest='datazilla_url',
-                      default='https://datazilla.mozilla.org',
-                      metavar='str',
-                      help='datazilla server url (default: %default)')
-    parser.add_option('--dz-project',
-                      action='store',
-                      dest='datazilla_project',
-                      metavar='str',
-                      help='datazilla project name')
-    parser.add_option('--dz-branch',
-                      action='store',
-                      dest='datazilla_branch',
-                      metavar='str',
-                      help='datazilla branch name')
-    parser.add_option('--dz-key',
-                      action='store',
-                      dest='datazilla_key',
-                      metavar='str',
-                      help='oauth key for datazilla server')
-    parser.add_option('--dz-secret',
-                      action='store',
-                      dest='datazilla_secret',
-                      metavar='str',
-                      help='oauth secret for datazilla server')
 
     options, args = parser.parse_args()
 
@@ -209,18 +231,11 @@ def cli():
         print 'must specify at least one app name'
         parser.exit()
 
-    datazilla_url = urlparse(options.datazilla_url)
-    datazilla_config = {
-        'protocol': datazilla_url.scheme,
-        'host': datazilla_url.hostname,
-        'project': options.datazilla_project,
-        'branch': options.datazilla_branch,
-        'oauth_key': options.datazilla_key,
-        'oauth_secret': options.datazilla_secret}
+    datazilla_config = parser.datazilla_config(options)
 
     marionette = Marionette(host='localhost', port=2828)  # TODO command line option for address
     marionette.start_session()
-    b2gperf = B2GPerf(marionette, datazilla_config=datazilla_config)
+    b2gperf = B2GPerfRunner(marionette, datazilla_config=datazilla_config)
     b2gperf.measure_app_perf(
         app_names=args,
         delay=options.delay,
