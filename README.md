@@ -35,3 +35,18 @@ If you anticipate modifying b2gperf, you can instead:
       --iterations=int  number of times to launch each app (default: 30)
       --no-restart      do not restart B2G between tests
       --settle-time     time to wait before initial launch (default: 60)
+      --testvars=str    path to a json file with any test data required
+
+## Test Variables
+
+Currently the only test variable support is for a wifi network. If you want to
+connect to wifi before measuring performance, please specify a path to a JSON
+file that describes the network. For example:
+
+    {
+      "wifi": {
+        "ssid": "MyNetwork",
+        "keyManagement": "WPA-PSK",
+        "psk": "SecurePassword"
+      }
+    }

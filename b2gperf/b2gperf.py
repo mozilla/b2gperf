@@ -6,6 +6,7 @@
 
 from optparse import OptionParser
 from StringIO import StringIO
+import os
 import pkg_resources
 import sys
 import time
@@ -105,8 +106,10 @@ class DatazillaPerfPoster(object):
 class B2GPerfRunner(DatazillaPerfPoster):
 
     def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True,
-                         settle_time=60):
+                         settle_time=60, testvars={}):
         caught_exception = False
+
+        self.marionette.set_script_timeout(60000)
 
         if not restart:
             time.sleep(settle_time)
@@ -119,9 +122,14 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 gaiatest.GaiaDevice(self.marionette).restart_b2g()
                 time.sleep(settle_time)
 
+            apps = gaiatest.GaiaApps(self.marionette)
+            data_layer = gaiatest.GaiaData(self.marionette)
             gaiatest.LockScreen(self.marionette).unlock()  # unlock
-            gaiatest.GaiaApps(self.marionette).kill_all()  # kill all running apps
+            apps.kill_all()  # kill all running apps
             self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
+            if testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
+                data_layer.enable_wifi()
+                data_layer.connect_to_wifi(testvars.get('wifi'))
             self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
 
             try:
@@ -143,9 +151,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                     results.setdefault(metric, []).append(result.get(metric))
                                 else:
                                     raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
-                            gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
+                            apps.kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
                             success_counter += 1
                         except Exception, e:
+                            apps.kill_all()
                             print e
                             fail_counter += 1
                             if fail_counter > fail_threshold:
@@ -239,7 +248,11 @@ def cli():
                       default=60,
                       metavar='float',
                       help='time to wait before initial launch (default: %default)')
-
+    parser.add_option('--testvars',
+                      action='store',
+                      dest='testvars',
+                      metavar='str',
+                      help='path to a json file with any test data required')
     options, args = parser.parse_args()
 
     if not args:
@@ -251,6 +264,15 @@ def cli():
         print 'must specify at least one app name'
         parser.exit()
 
+    testvars = {}
+    if options.testvars:
+        if not os.path.exists(options.testvars):
+            raise Exception('--testvars file does not exist')
+
+        import json
+        with open(options.testvars) as f:
+            testvars = json.loads(f.read())
+
     datazilla_config = parser.datazilla_config(options)
 
     marionette = Marionette(host='localhost', port=2828)  # TODO command line option for address
@@ -261,7 +283,8 @@ def cli():
         delay=options.delay,
         iterations=options.iterations,
         restart=options.restart,
-        settle_time=options.settle_time)
+        settle_time=options.settle_time,
+        testvars=testvars)
 
 
 if __name__ == '__main__':
