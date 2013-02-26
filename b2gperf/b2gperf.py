@@ -104,8 +104,8 @@ class DatazillaPerfPoster(object):
 
 class B2GPerfRunner(DatazillaPerfPoster):
 
-    def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True):
-        settle_time = 60
+    def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True,
+                         settle_time=60):
         caught_exception = False
 
         if not restart:
@@ -232,6 +232,12 @@ def cli():
                       dest='restart',
                       default=True,
                       help='do not restart B2G between tests')
+    parser.add_option('--settle-time',
+                      action='store',
+                      type='float',
+                      dest='settle_time',
+                      default=60,
+                      help='time to wait before initial launch')
 
     options, args = parser.parse_args()
 
@@ -253,7 +259,8 @@ def cli():
         app_names=args,
         delay=options.delay,
         iterations=options.iterations,
-        restart=options.restart)
+        restart=options.restart,
+        settle_time=options.settle_time)
 
 
 if __name__ == '__main__':
