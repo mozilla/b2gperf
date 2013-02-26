@@ -219,7 +219,7 @@ def cli():
                       default=1,  # TODO default is needed due to bug 821766
                       # (and perhaps also to prevent panda board overheating...)
                       metavar='float',
-                      help='duration (in seconds) to wait before each iteration')
+                      help='duration (in seconds) to wait before each iteration (default: %default)')
     parser.add_option('--iterations',
                       action='store',
                       type=int,
@@ -237,7 +237,8 @@ def cli():
                       type='float',
                       dest='settle_time',
                       default=60,
-                      help='time to wait before initial launch')
+                      metavar='float',
+                      help='time to wait before initial launch (default: %default)')
 
     options, args = parser.parse_args()
 
