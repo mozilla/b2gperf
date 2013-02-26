@@ -116,8 +116,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
             progress.start()
 
             if restart:
-                time.sleep(settle_time)
                 gaiatest.GaiaDevice(self.marionette).restart_b2g()
+                time.sleep(settle_time)
 
             gaiatest.LockScreen(self.marionette).unlock()  # unlock
             gaiatest.GaiaApps(self.marionette).kill_all()  # kill all running apps
