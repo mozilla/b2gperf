@@ -127,9 +127,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
             gaiatest.LockScreen(self.marionette).unlock()  # unlock
             apps.kill_all()  # kill all running apps
             self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
-            if testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
-                data_layer.enable_wifi()
-                data_layer.connect_to_wifi(testvars.get('wifi'))
             self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
 
             try:
@@ -142,6 +139,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
                         break
                     else:
                         try:
+                            if testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
+                                data_layer.enable_wifi()
+                                data_layer.connect_to_wifi(testvars.get('wifi'))
                             time.sleep(delay)
                             result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
                             if not result:
