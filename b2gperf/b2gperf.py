@@ -25,7 +25,7 @@ import mozdevice
 
 class DatazillaPerfPoster(object):
 
-    def __init__(self, marionette, datazilla_config=None):
+    def __init__(self, marionette, datazilla_config=None, sources=None):
         self.marionette = marionette
 
         settings = gaiatest.GaiaData(self.marionette).all_settings  # get all settings
@@ -42,12 +42,15 @@ class DatazillaPerfPoster(object):
                 self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
 
             # get gecko and build revisions
-            sources_xml = xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
-            for element in sources_xml.getElementsByTagName('project'):
-                path = element.getAttribute('path')
-                revision = element.getAttribute('revision')
-                if path in ['gecko', 'build']:
-                    self.ancillary_data['_'.join([path, 'revision'])] = revision
+            try:
+                sources_xml = sources and xml.dom.minidom.parse(sources) or xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
+                for element in sources_xml.getElementsByTagName('project'):
+                    path = element.getAttribute('path')
+                    revision = element.getAttribute('revision')
+                    if path in ['gecko', 'build']:
+                        self.ancillary_data['_'.join([path, 'revision'])] = revision
+            except:
+                pass
 
         self.required = {
             'gaia revision': self.ancillary_data.get('gaia_revision'),
@@ -206,8 +209,17 @@ class dzOptionParser(OptionParser):
                         dest='datazilla_secret',
                         metavar='str',
                         help='oauth secret for datazilla server')
+        self.add_option('--sources',
+                        action='store',
+                        dest='sources',
+                        metavar='str',
+                        help='path to sources.xml containing project revisions')
 
     def datazilla_config(self, options):
+        if options.sources:
+            if not os.path.exists(options.sources):
+                raise Exception('--sources file does not exist')
+
         datazilla_url = urlparse(options.datazilla_url)
         datazilla_config = {
             'protocol': datazilla_url.scheme,
@@ -277,7 +289,9 @@ def cli():
 
     marionette = Marionette(host='localhost', port=2828)  # TODO command line option for address
     marionette.start_session()
-    b2gperf = B2GPerfRunner(marionette, datazilla_config=datazilla_config)
+    b2gperf = B2GPerfRunner(marionette,
+                            datazilla_config=datazilla_config,
+                            sources=options.sources)
     b2gperf.measure_app_perf(
         app_names=args,
         delay=options.delay,
