@@ -22,7 +22,8 @@ import gaiatest
 from marionette import Marionette
 import mozdevice
 
-TEST_TYPES=['startup', 'scrollfps']
+TEST_TYPES = ['startup', 'scrollfps']
+
 
 class DatazillaPerfPoster(object):
 
@@ -118,12 +119,11 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
         if test_type == 'startup':
             print "running startup test"
-            marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
-            test_startup()
+            self.test_startup()
         elif test_type == 'scrollfps':
             print 'running fps test'
-            marionette.import_script(os.path.join(script_dir, 'scrollapp.js'))
-            test_scrollfps()
+            self.marionette.import_script(os.path.join(pkg_resources.resource_filename(__name__, 'scrollapp.js')))
+            self.test_scrollfps()
         else:
             print "ERROR: Invalid test type, it should be one of %s" % TEST_TYPES
 
@@ -136,7 +136,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             time.sleep(self.settle_time)
 
         for app_name in self.app_names:
-            progress = ProgressBar(widgets=['%s: ' % app_name, '[', Counter(), '/%d] ' % iterations], maxval=iterations)
+            progress = ProgressBar(widgets=['%s: ' % app_name, '[', Counter(), '/%d] ' % self.iterations], maxval=self.iterations)
             progress.start()
 
             if self.restart:
@@ -162,7 +162,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                         try:
                             if self.testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
                                 data_layer.enable_wifi()
-                                data_layer.connect_to_wifi(testvars.get('wifi'))
+                                data_layer.connect_to_wifi(self.testvars.get('wifi'))
                             time.sleep(self.delay)
                             result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
                             if not result:
@@ -197,15 +197,21 @@ class B2GPerfRunner(DatazillaPerfPoster):
         if caught_exception:
             sys.exit(1)
 
-    def run_scrollfps(self):
+    def test_scrollfps(self):
         # Enable fps counter so it is stable
-        self.marionette.set_context(marionette.CONTEXT_CHROME)
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
         self.marionette.execute_script(
             'Components.utils.import("resource://gre/modules/Services.jsm");'
             'Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);')
         self.marionette.set_script_timeout(60000)
-        self.marionette.set_context(marionette.CONTEXT_CONTENT)
-        caught_exception = False 
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
+        caught_exception = False
+
+        apps = gaiatest.GaiaApps(self.marionette)
+        gaiatest.LockScreen(self.marionette).unlock()  # unlock
+        apps.kill_all()  # kill all running apps
+        self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
+
         for app_name in self.app_names:
             try:
                 fps = {}
@@ -213,7 +219,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 fail_counter = 0
                 fail_threshold = int(self.iterations * 0.2)
                 for i in range(self.iterations + fail_threshold):
-                    if success_counter == iterations:
+                    if success_counter == self.iterations:
                         break
                     else:
                         try:
@@ -227,12 +233,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             if fps:
                                 print 'FPS: %f/%f' % (fps.get('composition_fps'),
                                                       fps.get('transaction_fps'))
-                            
-                            self.marionette.set_context(marionette.CONTEXT_CHROME)
-                            self.marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
-                            self.marionette.set_context(marionette.CONTEXT_CONTENT)
+
                             if fps:
-                                gaiatest.GaiaApps(marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
+                                gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
                             success_counter += 1
                         except Exception, e:
                             print e
@@ -242,11 +245,15 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
                 # TODO: This is where you submit to datazilla
                 print "This is the FPS object: %s" % fps
+                self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+                self.marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
+                self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
             except Exception, e:
                 print e
                 caught_exception = True
         if caught_exception:
             sys.exit(1)
+
 
 class dzOptionParser(OptionParser):
     def __init__(self, **kwargs):
@@ -324,8 +331,8 @@ def cli():
                       type='str',
                       dest='test_type',
                       default='startup',
-                      help='Type of test to run, valid types are: %s' %
-                      TEST_TYPES),
+                      metavar='str',
+                      help='Type of test to run, valid types are: %s (default: startup)' % TEST_TYPES),
     parser.add_option('--testvars',
                       action='store',
                       dest='testvars',
@@ -366,7 +373,7 @@ def cli():
         iterations=options.iterations,
         restart=options.restart,
         settle_time=options.settle_time,
-        test_type=options.test_type
+        test_type=options.test_type,
         testvars=testvars)
 
 
