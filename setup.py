@@ -31,7 +31,7 @@ setup(name='b2gperf',
       url='https://github.com/davehunt/b2gperf',
       license='MPL',
       packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
-      package_data={'b2gperf': ['launchapp.js']},
+      package_data={'b2gperf': ['launchapp.js', 'scrollapp.js']},
       include_package_data=True,
       zip_safe=False,
       entry_points="""

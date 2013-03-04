@@ -22,6 +22,7 @@ import gaiatest
 from marionette import Marionette
 import mozdevice
 
+TEST_TYPES=['startup', 'scrollfps']
 
 class DatazillaPerfPoster(object):
 
@@ -115,21 +116,41 @@ class DatazillaPerfPoster(object):
 class B2GPerfRunner(DatazillaPerfPoster):
 
     def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True,
-                         settle_time=60, testvars={}):
+                         settle_time=60, test_type='startup', testvars={}):
+        # Store our attributes so tests can use them
+        self.app_names = app_names
+        self.delay = delay
+        self.iterations = iterations
+        self.restart = restart
+        self.settle_time = settle_time
+        self.testvars = testvars
+
+        if test_type == 'startup':
+            print "running startup test"
+            marionette.import_script(os.path.join(script_dir, 'launchapp.js'))
+            test_startup()
+        elif test_type == 'scrollfps':
+            print 'running fps test'
+            marionette.import_script(os.path.join(script_dir, 'scrollapp.js'))
+            test_scrollfps()
+        else:
+            print "ERROR: Invalid test type, it should be one of %s" % TEST_TYPES
+
+    def test_startup(self):
         caught_exception = False
 
         self.marionette.set_script_timeout(60000)
 
-        if not restart:
-            time.sleep(settle_time)
+        if not self.restart:
+            time.sleep(self.settle_time)
 
-        for app_name in app_names:
+        for app_name in self.app_names:
             progress = ProgressBar(widgets=['%s: ' % app_name, '[', Counter(), '/%d] ' % iterations], maxval=iterations)
             progress.start()
 
-            if restart:
+            if self.restart:
                 gaiatest.GaiaDevice(self.marionette).restart_b2g()
-                time.sleep(settle_time)
+                time.sleep(self.settle_time)
 
             apps = gaiatest.GaiaApps(self.marionette)
             data_layer = gaiatest.GaiaData(self.marionette)
@@ -142,16 +163,16 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 results = {}
                 success_counter = 0
                 fail_counter = 0
-                fail_threshold = int(iterations * 0.2)
-                for i in range(iterations + fail_threshold):
-                    if success_counter == iterations:
+                fail_threshold = int(self.iterations * 0.2)
+                for i in range(self.iterations + fail_threshold):
+                    if success_counter == self.iterations:
                         break
                     else:
                         try:
-                            if testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
+                            if self.testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
                                 data_layer.enable_wifi()
                                 data_layer.connect_to_wifi(testvars.get('wifi'))
-                            time.sleep(delay)
+                            time.sleep(self.delay)
                             result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
                             if not result:
                                 raise Exception('Error launching app')
@@ -185,6 +206,56 @@ class B2GPerfRunner(DatazillaPerfPoster):
         if caught_exception:
             sys.exit(1)
 
+    def run_scrollfps(self):
+        # Enable fps counter so it is stable
+        self.marionette.set_context(marionette.CONTEXT_CHROME)
+        self.marionette.execute_script(
+            'Components.utils.import("resource://gre/modules/Services.jsm");'
+            'Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);')
+        self.marionette.set_script_timeout(60000)
+        self.marionette.set_context(marionette.CONTEXT_CONTENT)
+        caught_exception = False 
+        for app_name in self.app_names:
+            try:
+                fps = {}
+                success_counter = 0
+                fail_counter = 0
+                fail_threshold = int(self.iterations * 0.2)
+                for i in range(self.iterations + fail_threshold):
+                    if success_counter == iterations:
+                        break
+                    else:
+                        try:
+                            print '%s: [%s/%s]' % (app_name, (i + 1), self.iterations + fail_counter)
+                            self.marionette.set_script_timeout(60000)
+                            time.sleep(self.delay)
+                            period = 5000  # ms
+                            sample_hz = 10
+                            self.marionette.set_script_timeout(period + 1000)
+                            fps = self.marionette.execute_async_script('scroll_app("%s", %d, %d)' % (app_name, period, sample_hz))
+                            if fps:
+                                print 'FPS: %f/%f' % (fps.get('composition_fps'),
+                                                      fps.get('transaction_fps'))
+                            
+                            self.marionette.set_context(marionette.CONTEXT_CHROME)
+                            self.marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
+                            self.marionette.set_context(marionette.CONTEXT_CONTENT)
+                            if fps:
+                                gaiatest.GaiaApps(marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
+                            success_counter += 1
+                        except Exception, e:
+                            print e
+                            fail_counter += 1
+                            if fail_counter > fail_threshold:
+                                raise Exception('Exceeded failure threshold for gathering results!')
+
+                # TODO: This is where you submit to datazilla
+                print "This is the FPS object: %s" % fps
+            except Exception, e:
+                print e
+                caught_exception = True
+        if caught_exception:
+            sys.exit(1)
 
 class dzOptionParser(OptionParser):
     def __init__(self, **kwargs):
@@ -266,6 +337,13 @@ def cli():
                       default=60,
                       metavar='float',
                       help='time to wait before initial launch (default: %default)')
+    parser.add_option('--test-type',
+                      action='store',
+                      type='str',
+                      dest='test_type',
+                      default='startup',
+                      help='Type of test to run, valid types are: %s' %
+                      TEST_TYPES),
     parser.add_option('--testvars',
                       action='store',
                       dest='testvars',
@@ -280,6 +358,10 @@ def cli():
     if len(args) < 1:
         parser.print_usage()
         print 'must specify at least one app name'
+        parser.exit()
+
+    if options.test_type not in TEST_TYPES:
+        print 'Invalid test type. Test type must be one of %s' % TEST_TYPES
         parser.exit()
 
     testvars = {}
@@ -304,6 +386,7 @@ def cli():
         iterations=options.iterations,
         restart=options.restart,
         settle_time=options.settle_time,
+        test_type=options.test_type
         testvars=testvars)
 
 
