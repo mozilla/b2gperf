@@ -77,9 +77,9 @@ class DatazillaPerfPoster(object):
     def post_to_datazilla(self, results, app_name):
         # Prepare DataZilla results
         res = dzclient.DatazillaResult()
+        test_suite = app_name.replace(' ', '_').lower()
+        res.add_testsuite(test_suite)
         for metric in results.keys():
-            test_suite = app_name.replace(' ', '_').lower()
-            res.add_testsuite(test_suite)
             res.add_test_results(test_suite, metric, results[metric])
         req = dzclient.DatazillaRequest(
             protocol=self.required.get('protocol'),
