@@ -51,7 +51,7 @@ fps_meter.prototype = {
     // entire list of instantaneous FPS estimates.
     let cp_fps_all = [x[2] for each (x in this._data)];
     let txn_fps_all = [x[4] for each (x in this._data)];
-    let last = data.pop();
+    let last = this._data.pop();
     let time_elapsed = last[0] - this._data[0][0];
     let total_cp_frames = last[1] - this._data[0][1];
     let total_txn_frames = last[3] - this._data[0][3];
