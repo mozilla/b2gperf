@@ -12,7 +12,7 @@ import sys
 import time
 from urlparse import urlparse
 import xml.dom.minidom
-from zipfile import ZipFile
+import zipfile
 
 from progressbar import Counter
 from progressbar import ProgressBar
@@ -35,18 +35,24 @@ class DatazillaPerfPoster(object):
         self.ancillary_data = {}
 
         if gaiatest.GaiaDevice(self.marionette).is_android_build:
-            # get gaia revision
-            device_manager = mozdevice.DeviceManagerADB()
-            app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
-            with ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
-                self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
+            # get gaia, gecko and build revisions
+            try:
+                device_manager = mozdevice.DeviceManagerADB()
+                app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
+                with zipfile.ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
+                    self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
+            except zipfile.BadZipfile:
+                # the zip file will not exist if Gaia has not been flashed to
+                # the device, so we fall back to the sources file
+                pass
 
-            # get gecko and build revisions
             try:
                 sources_xml = sources and xml.dom.minidom.parse(sources) or xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
                 for element in sources_xml.getElementsByTagName('project'):
                     path = element.getAttribute('path')
                     revision = element.getAttribute('revision')
+                    if not self.ancillary_data.get('gaia_revision') and path in 'gaia':
+                        self.ancillary_data['gaia_revision'] = revision
                     if path in ['gecko', 'build']:
                         self.ancillary_data['_'.join([path, 'revision'])] = revision
             except:
