@@ -20,6 +20,7 @@ from progressbar import ProgressBar
 import dzclient
 import gaiatest
 from marionette import Marionette
+from marionette import MarionetteTouchMixin
 import mozdevice
 
 TEST_TYPES = ['startup', 'scrollfps']
@@ -122,7 +123,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
             self.test_startup()
         elif test_type == 'scrollfps':
             print 'running fps test'
-            self.marionette.import_script(os.path.join(pkg_resources.resource_filename(__name__, 'scrollapp.js')))
             self.test_scrollfps()
         else:
             print "ERROR: Invalid test type, it should be one of %s" % TEST_TYPES
@@ -211,7 +211,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
         gaiatest.LockScreen(self.marionette).unlock()  # unlock
         apps.kill_all()  # kill all running apps
         self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
-
+        self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
+        self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
         for app_name in self.app_names:
             try:
                 fps = {}
@@ -229,7 +230,20 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             period = 5000  # ms
                             sample_hz = 10
                             self.marionette.set_script_timeout(period + 1000)
-                            fps = self.marionette.execute_async_script('scroll_app("%s", %d, %d)' % (app_name, period, sample_hz))
+                            # Launch the app
+                            result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
+                            if not result:
+                                raise Exception('Error launching app')
+
+                            # Turn on FPS
+                            result = self.marionette.execute_async_script('window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); fps.start_fps();' % (app_name, period, sample_hz))
+                            if not result:
+                                raise Exception('Error turning on fps measurement')
+
+                            # Do scroll
+                            self.scroll_app(app_name)
+
+                            fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()', new_sandbox=False)
                             if fps:
                                 print 'FPS: %f/%f' % (fps.get('composition_fps'),
                                                       fps.get('transaction_fps'))
@@ -254,6 +268,20 @@ class B2GPerfRunner(DatazillaPerfPoster):
         if caught_exception:
             sys.exit(1)
 
+    def scroll_app(self, app_name):
+        print "Here is where I scroll the app"
+        #touch_duration=float(200)
+        #self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
+ 
+        #self.marionette.start_session()
+        #self.marionette.setup_touch()
+ 
+        #if app_name == 'Homescreen':
+        #    self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
+        #    time.sleep(touch_duration / 1000)
+        #    self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
+ 
+        #self.marionette.delete_session()
 
 class dzOptionParser(OptionParser):
     def __init__(self, **kwargs):
