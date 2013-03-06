@@ -240,12 +240,13 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             sample_hz = 10
                             self.marionette.set_script_timeout(period + 1000)
                             # Launch the app
-                            result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
-                            if not result:
-                                raise Exception('Error launching app')
+                            if app_name != 'Homescreen':
+                                result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
+                                if not result:
+                                    raise Exception('Error launching app')
 
                             # Turn on FPS
-                            result = self.marionette.execute_async_script('window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); fps.start_fps();' % (app_name, period, sample_hz))
+                            result = self.marionette.execute_async_script('window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); window.wrappedJSObject.fps.start_fps();' % (app_name, period, sample_hz))
                             if not result:
                                 raise Exception('Error turning on fps measurement')
 
@@ -279,19 +280,16 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
     def scroll_app(self, app_name):
         print "Here is where I scroll the app"
-        #touch_duration=float(200)
-        #self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
+        touch_duration=float(200)
+        self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
  
-        #self.marionette.start_session()
-        #self.marionette.setup_touch()
+        self.marionette.setup_touch()
  
-        #if app_name == 'Homescreen':
-        #    self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
-        #    time.sleep(touch_duration / 1000)
-        #    self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
+        if app_name == 'Homescreen':
+            self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
+            time.sleep(touch_duration / 1000)
+            self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
  
-        #self.marionette.delete_session()
-
 class dzOptionParser(OptionParser):
     def __init__(self, **kwargs):
         OptionParser.__init__(self, **kwargs)
