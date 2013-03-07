@@ -21,6 +21,7 @@ import dzclient
 import gaiatest
 from marionette import Marionette
 from marionette import MarionetteTouchMixin
+from gestures import smooth_scroll
 import mozdevice
 
 TEST_TYPES = ['startup', 'scrollfps']
@@ -285,14 +286,32 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
 
         self.marionette.setup_touch()
+        apps = gaiatest.GaiaApps(self.marionette)
 
         if app_name == 'Homescreen':
             self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
             time.sleep(touch_duration / 1000)
             self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
         elif app_name == 'Contacts':
-            print "SCROLL ME NOW"
-            time.sleep(25)
+            contacts = apps.launch('Contacts')
+            time.sleep(5) # wait for the contacts to load
+            names = self.marionette.find_elements("class name", "contact-item")
+            smooth_scroll(self.marionette, names[0], "y", "negative", 5000, scroll_back=False)
+            time.sleep(5)
+        elif app_name == 'Browser':
+            browser = apps.launch('Browser')
+            #navigate is misbehaving
+            self.marionette.execute_script("window.location.href='http://taskjs.org/';")
+            time.sleep(5) # wait for the page to load
+            a = self.marionette.find_element("tag name", "a")
+            smooth_scroll(self.marionette, a, "y", "negative", 5000, scroll_back=True)
+            time.sleep(5)
+        elif app_name == 'Email':
+            email = apps.launch('Email')
+            time.sleep(10) # wait for the page to load
+            emails = self.marionette.find_elements("class name", "msg-header-item")
+            smooth_scroll(self.marionette, emails[0], "y", "negative", 2000, scroll_back=True)
+            time.sleep(5)
 
 
 class dzOptionParser(OptionParser):
