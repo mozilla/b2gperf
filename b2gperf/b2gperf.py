@@ -279,16 +279,17 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
     def scroll_app(self, app_name):
         print "Here is where I scroll the app"
-        touch_duration=float(200)
+        touch_duration = float(200)
         self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
- 
+
         self.marionette.setup_touch()
- 
+
         if app_name == 'Homescreen':
             self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
             time.sleep(touch_duration / 1000)
             self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
- 
+
+
 class dzOptionParser(OptionParser):
     def __init__(self, **kwargs):
         OptionParser.__init__(self, **kwargs)
