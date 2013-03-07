@@ -264,12 +264,13 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             fail_counter += 1
                             if fail_counter > fail_threshold:
                                 raise Exception('Exceeded failure threshold for gathering results!')
+                        finally:
+                            self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+                            self.marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
+                            self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
 
                 # TODO: This is where you submit to datazilla
                 print "This is the FPS object: %s" % fps
-                self.marionette.set_context(self.marionette.CONTEXT_CHROME)
-                self.marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
-                self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
             except Exception, e:
                 print e
                 caught_exception = True
