@@ -228,7 +228,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             self.marionette.set_script_timeout(60000)
                             time.sleep(self.delay)
                             period = 5000  # ms
-                            sample_hz = 10
+                            sample_hz = 100
                             self.marionette.set_script_timeout(period + 1000)
                             # Launch the app
                             if app_name != 'Homescreen':
@@ -246,8 +246,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
                             fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()', new_sandbox=False)
                             if fps:
-                                print 'FPS: %f/%f' % (fps.get('composition_fps'),
-                                                      fps.get('transaction_fps'))
+                                print 'FPS: %f' % (fps.get('fps'))
 
                             if fps:
                                 gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
@@ -280,7 +279,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
             self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
             time.sleep(touch_duration / 1000)
             self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
- 
+        elif app_name == 'Contacts':
+            print "SCROLL ME NOW"
+            time.sleep(25)
+
 class dzOptionParser(OptionParser):
     def __init__(self, **kwargs):
         OptionParser.__init__(self, **kwargs)
