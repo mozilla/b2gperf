@@ -220,7 +220,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
         gaiatest.LockScreen(self.marionette).unlock()  # unlock
         apps.kill_all()  # kill all running apps
         self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
-        self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
         self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
         for app_name in self.app_names:
             try:
@@ -240,10 +239,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             sample_hz = 10
                             self.marionette.set_script_timeout(period + 1000)
                             # Launch the app
-                            if app_name != 'Homescreen':
-                                result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
-                                if not result:
-                                    raise Exception('Error launching app')
+                            app = apps.launch(app_name, switch_to_frame=False)
 
                             # Turn on FPS
                             result = self.marionette.execute_async_script('window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); window.wrappedJSObject.fps.start_fps();' % (app_name, period, sample_hz))
@@ -251,7 +247,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                 raise Exception('Error turning on fps measurement')
 
                             # Do scroll
+                            self.marionette.switch_to_frame(app.frame)
                             self.scroll_app(app_name)
+                            self.marionette.switch_to_frame()
 
                             fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()', new_sandbox=False)
                             if fps:
