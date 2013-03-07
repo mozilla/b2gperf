@@ -12,7 +12,7 @@ import sys
 import time
 from urlparse import urlparse
 import xml.dom.minidom
-from zipfile import ZipFile
+import zipfile
 
 from progressbar import Counter
 from progressbar import ProgressBar
@@ -28,7 +28,7 @@ TEST_TYPES = ['startup', 'scrollfps']
 
 class DatazillaPerfPoster(object):
 
-    def __init__(self, marionette, datazilla_config=None):
+    def __init__(self, marionette, datazilla_config=None, sources=None):
         self.marionette = marionette
 
         settings = gaiatest.GaiaData(self.marionette).all_settings  # get all settings
@@ -38,19 +38,28 @@ class DatazillaPerfPoster(object):
         self.ancillary_data = {}
 
         if gaiatest.GaiaDevice(self.marionette).is_android_build:
-            # get gaia revision
-            device_manager = mozdevice.DeviceManagerADB()
-            app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
-            with ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
-                self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
+            # get gaia, gecko and build revisions
+            try:
+                device_manager = mozdevice.DeviceManagerADB()
+                app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
+                with zipfile.ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
+                    self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
+            except zipfile.BadZipfile:
+                # the zip file will not exist if Gaia has not been flashed to
+                # the device, so we fall back to the sources file
+                pass
 
-            # get gecko and build revisions
-            sources_xml = xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
-            for element in sources_xml.getElementsByTagName('project'):
-                path = element.getAttribute('path')
-                revision = element.getAttribute('revision')
-                if path in ['gecko', 'build']:
-                    self.ancillary_data['_'.join([path, 'revision'])] = revision
+            try:
+                sources_xml = sources and xml.dom.minidom.parse(sources) or xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
+                for element in sources_xml.getElementsByTagName('project'):
+                    path = element.getAttribute('path')
+                    revision = element.getAttribute('revision')
+                    if not self.ancillary_data.get('gaia_revision') and path in 'gaia':
+                        self.ancillary_data['gaia_revision'] = revision
+                    if path in ['gecko', 'build']:
+                        self.ancillary_data['_'.join([path, 'revision'])] = revision
+            except:
+                pass
 
         self.required = {
             'gaia revision': self.ancillary_data.get('gaia_revision'),
@@ -77,9 +86,9 @@ class DatazillaPerfPoster(object):
     def post_to_datazilla(self, results, app_name):
         # Prepare DataZilla results
         res = dzclient.DatazillaResult()
+        test_suite = app_name.replace(' ', '_').lower()
+        res.add_testsuite(test_suite)
         for metric in results.keys():
-            test_suite = app_name.replace(' ', '_').lower()
-            res.add_testsuite(test_suite)
             res.add_test_results(test_suite, metric, results[metric])
         req = dzclient.DatazillaRequest(
             protocol=self.required.get('protocol'),
@@ -211,7 +220,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
         gaiatest.LockScreen(self.marionette).unlock()  # unlock
         apps.kill_all()  # kill all running apps
         self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
-        self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
         self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
         for app_name in self.app_names:
             try:
@@ -231,10 +239,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             sample_hz = 100
                             self.marionette.set_script_timeout(period + 1000)
                             # Launch the app
-                            if app_name != 'Homescreen':
-                                result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
-                                if not result:
-                                    raise Exception('Error launching app')
+                            app = apps.launch(app_name, switch_to_frame=False)
 
                             # Turn on FPS
                             result = self.marionette.execute_async_script('window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); window.wrappedJSObject.fps.start_fps();' % (app_name, period, sample_hz))
@@ -242,12 +247,14 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                 raise Exception('Error turning on fps measurement')
 
                             # Do scroll
+                            self.marionette.switch_to_frame(app.frame)
                             self.scroll_app(app_name)
+                            self.marionette.switch_to_frame()
 
                             fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()', new_sandbox=False)
                             if fps:
                                 print 'FPS: %f' % (fps.get('fps'))
-
+                           
                             if fps:
                                 gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
                             success_counter += 1
@@ -257,11 +264,14 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             if fail_counter > fail_threshold:
                                 raise Exception('Exceeded failure threshold for gathering results!')
 
+                        finally:
+                            self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+                            self.marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
+                            self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
+
                 # TODO: This is where you submit to datazilla
                 print "This is the FPS object: %s" % fps
-                self.marionette.set_context(self.marionette.CONTEXT_CHROME)
-                self.marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
-                self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
+
             except Exception, e:
                 print e
                 caught_exception = True
@@ -270,11 +280,12 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
     def scroll_app(self, app_name):
         print "Here is where I scroll the app"
-        touch_duration=float(200)
+
+        touch_duration = float(200)
         self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
- 
+
         self.marionette.setup_touch()
- 
+
         if app_name == 'Homescreen':
             self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
             time.sleep(touch_duration / 1000)
@@ -282,6 +293,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         elif app_name == 'Contacts':
             print "SCROLL ME NOW"
             time.sleep(25)
+
 
 class dzOptionParser(OptionParser):
     def __init__(self, **kwargs):
@@ -312,8 +324,17 @@ class dzOptionParser(OptionParser):
                         dest='datazilla_secret',
                         metavar='str',
                         help='oauth secret for datazilla server')
+        self.add_option('--sources',
+                        action='store',
+                        dest='sources',
+                        metavar='str',
+                        help='path to sources.xml containing project revisions')
 
     def datazilla_config(self, options):
+        if options.sources:
+            if not os.path.exists(options.sources):
+                raise Exception('--sources file does not exist')
+
         datazilla_url = urlparse(options.datazilla_url)
         datazilla_config = {
             'protocol': datazilla_url.scheme,
@@ -394,7 +415,9 @@ def cli():
 
     marionette = Marionette(host='localhost', port=2828)  # TODO command line option for address
     marionette.start_session()
-    b2gperf = B2GPerfRunner(marionette, datazilla_config=datazilla_config)
+    b2gperf = B2GPerfRunner(marionette,
+                            datazilla_config=datazilla_config,
+                            sources=options.sources)
     b2gperf.measure_app_perf(
         app_names=args,
         delay=options.delay,

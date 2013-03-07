@@ -45,5 +45,7 @@ if __name__ == "__main__":
 
     marionette = Marionette(host='localhost', port=2828)
     marionette.start_session()
-    handler = MozPerfHandler(marionette, datazilla_config=datazilla_config)
+    handler = MozPerfHandler(marionette,
+                             datazilla_config=datazilla_config,
+                             sources=options.sources)
     handler.process_results(args[0])
