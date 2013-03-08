@@ -208,12 +208,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
             sys.exit(1)
 
     def test_scrollfps(self):
-        # Enable fps counter so it is stable
-        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
-        self.marionette.execute_script(
-            'Components.utils.import("resource://gre/modules/Services.jsm");'
-            'Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);')
-        self.marionette.set_script_timeout(60000)
         self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
         caught_exception = False
 
@@ -222,6 +216,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         apps.kill_all()  # kill all running apps
         self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
         self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
+        results = {}
         for app_name in self.app_names:
             try:
                 fps = {}
@@ -241,6 +236,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             self.marionette.set_script_timeout(period + 1000)
                             # Launch the app
                             app = apps.launch(app_name, switch_to_frame=False)
+                            # Wait for app to load - TODO: can't we be smarter?
+                            time.sleep(1)
 
                             # Turn on FPS
                             result = self.marionette.execute_async_script('window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); window.wrappedJSObject.fps.start_fps();' % (app_name, period, sample_hz))
@@ -253,8 +250,11 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             self.marionette.switch_to_frame()
 
                             fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()', new_sandbox=False)
-                            if fps:
-                                print 'FPS: %f' % (fps.get('fps'))
+                            for metric in ['fps']:
+                                if fps.get(metric):
+                                    results.setdefault(metric, []).append(fps.get(metric))
+                                else:
+                                    raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
                            
                             if fps:
                                 gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
@@ -266,12 +266,15 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                 raise Exception('Exceeded failure threshold for gathering results!')
 
                         finally:
-                            self.marionette.set_context(self.marionette.CONTEXT_CHROME)
-                            self.marionette.execute_script('Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);')
-                            self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
+                            apps.kill_all()
 
                 # TODO: This is where you submit to datazilla
-                print "This is the FPS object: %s" % fps
+                print "DBG: This is the FPS object: %s" % fps
+                print "DBG: This is the results object %s" % results
+                if self.submit_report:
+                    self.post_to_datazilla(results, app_name)
+                else:
+                    print 'Results: %s' % results
 
             except Exception, e:
                 print e
@@ -280,7 +283,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             sys.exit(1)
 
     def scroll_app(self, app_name):
-        print "Here is where I scroll the app"
+        print "Scrolling..."
 
         touch_duration = float(200)
         self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
@@ -293,22 +296,20 @@ class B2GPerfRunner(DatazillaPerfPoster):
             time.sleep(touch_duration / 1000)
             self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
         elif app_name == 'Contacts':
-            contacts = apps.launch('Contacts')
-            time.sleep(5) # wait for the contacts to load
             names = self.marionette.find_elements("class name", "contact-item")
             smooth_scroll(self.marionette, names[0], "y", "negative", 5000, scroll_back=False)
+            # TODO: let's see if we can use touchend to know exactly when the scroll is finished so we aren't 
+            #       measuring fps while we are not actually scrolling.
             time.sleep(5)
         elif app_name == 'Browser':
             browser = apps.launch('Browser')
-            #navigate is misbehaving
+            #TODO: navigate is misbehaving
             self.marionette.execute_script("window.location.href='http://taskjs.org/';")
             time.sleep(5) # wait for the page to load
             a = self.marionette.find_element("tag name", "a")
             smooth_scroll(self.marionette, a, "y", "negative", 5000, scroll_back=True)
             time.sleep(5)
         elif app_name == 'Email':
-            email = apps.launch('Email')
-            time.sleep(10) # wait for the page to load
             emails = self.marionette.find_elements("class name", "msg-header-item")
             smooth_scroll(self.marionette, emails[0], "y", "negative", 2000, scroll_back=True)
             time.sleep(5)
