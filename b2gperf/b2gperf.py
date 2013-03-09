@@ -21,6 +21,7 @@ import dzclient
 import gaiatest
 from marionette import Marionette
 from marionette import MarionetteTouchMixin
+from marionette.errors import NoSuchElementException, TimeoutException
 from gestures import smooth_scroll
 import mozdevice
 
@@ -233,22 +234,23 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             time.sleep(self.delay)
                             period = 5000  # ms
                             sample_hz = 100
-                            self.marionette.set_script_timeout(period + 1000)
                             # Launch the app
                             app = apps.launch(app_name, switch_to_frame=False)
                             # Wait for app to load - TODO: can't we be smarter?
                             time.sleep(1)
 
                             # Turn on FPS
+                            self.marionette.set_script_timeout(period + 1000)
                             result = self.marionette.execute_async_script('window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); window.wrappedJSObject.fps.start_fps();' % (app_name, period, sample_hz))
                             if not result:
                                 raise Exception('Error turning on fps measurement')
 
                             # Do scroll
+                            self.marionette.set_script_timeout(60000)
                             self.marionette.switch_to_frame(app.frame)
                             self.scroll_app(app_name)
+                            self.marionette.execute_async_script('window.addEventListener("touchend", function(){ marionetteScriptFinished();}, false)', new_sandbox=False)
                             self.marionette.switch_to_frame()
-
                             fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()', new_sandbox=False)
                             for metric in ['fps']:
                                 if fps.get(metric):
@@ -290,29 +292,60 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
         self.marionette.setup_touch()
         apps = gaiatest.GaiaApps(self.marionette)
+        #wait up to 30secs for the elements we want to show up
+        self.marionette.set_search_timeout(30000)
+        def wait_for_visible(element, timeout=30):
+            timeout = float(timeout) + time.time()
+            print element.get_attribute("innerHTML")
+            #check = (lambda el : el.is_displayed()) if visible else (lambda el: (el.get_attribute("hidden")))
+            while time.time() < timeout:
+                time.sleep(0.3)
+                try:
+                    if element.is_displayed() or not element.get_attribute("hidden"):
+                        break
+                except NoSuchElementException:
+                    pass
+            else:
+                raise TimeoutException('Element %s not visible before timeout' % locator) 
 
         if app_name == 'Homescreen':
             self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
             time.sleep(touch_duration / 1000)
             self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
         elif app_name == 'Contacts':
-            names = self.marionette.find_elements("class name", "contact-item")
-            smooth_scroll(self.marionette, names[0], "y", "negative", 5000, scroll_back=False)
+            name = self.marionette.find_element("class name", "contact-item")
+            wait_for_visible(name)
+            smooth_scroll(self.marionette, name, "y", "negative", 5000, scroll_back=False)
             # TODO: let's see if we can use touchend to know exactly when the scroll is finished so we aren't 
             #       measuring fps while we are not actually scrolling.
-            time.sleep(5)
         elif app_name == 'Browser':
-            browser = apps.launch('Browser')
             #TODO: navigate is misbehaving
-            self.marionette.execute_script("window.location.href='http://taskjs.org/';")
-            time.sleep(5) # wait for the page to load
-            a = self.marionette.find_element("tag name", "a")
-            smooth_scroll(self.marionette, a, "y", "negative", 5000, scroll_back=True)
-            time.sleep(5)
+            self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
+            print self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False)
+            while self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False) != True:
+                print self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False)
+                time.sleep(0.1)
+            # check when the tab's document is ready
+            tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
+            self.marionette.switch_to_frame(tab_frame)
+            while self.marionette.execute_script("return window.document.readyState;", new_sandbox=False) != "complete":
+                print self.marionette.execute_script("return window.document.readyState;", new_sandbox=False)
+                time.sleep(0.1)
+            # we have to fire smooth_scroll from the browser app, so let's go back
+            self.marionette.switch_to_frame()
+            apps = apps.launch(app_name) # since the app is launched, launch will switch us back to the app frame without relaunching
+            tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
+            smooth_scroll(self.marionette, tab_dom, "y", "negative", 5000, scroll_back=True)
+            # This makes no sense, but this confounding hack is the only way to get fps defined in system apps' window object for some reason.
+            self.marionette.switch_to_frame(tab_frame)
+
         elif app_name == 'Email':
-            emails = self.marionette.find_elements("class name", "msg-header-item")
+            emails = self.marionette.find_elements("class name", "msg-header-author")
+            #we're dynamically adding these elements from a template, and the first one found is blank.
+            while not emails[0].get_attribute("innerHTML"):
+                time.sleep(0.2)
+                emails = self.marionette.find_elements("class name", "msg-header-author")
             smooth_scroll(self.marionette, emails[0], "y", "negative", 2000, scroll_back=True)
-            time.sleep(5)
 
 
 class dzOptionParser(OptionParser):
