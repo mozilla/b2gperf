@@ -220,6 +220,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
         results = {}
         for app_name in self.app_names:
+            progress = ProgressBar(widgets=['%s: ' % app_name, '[', Counter(), '/%d] ' % self.iterations], maxval=self.iterations)
+            progress.start()
+
             try:
                 fps = {}
                 success_counter = 0
@@ -230,7 +233,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
                         break
                     else:
                         try:
-                            print '%s: [%s/%s]' % (app_name, (i + 1), self.iterations + fail_counter)
                             self.marionette.set_script_timeout(60000)
                             time.sleep(self.delay)
                             period = 5000  # ms
@@ -267,10 +269,13 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             print e
                             fail_counter += 1
                             if fail_counter > fail_threshold:
+                                progress.maxval = success_counter
+                                progress.finish()
                                 raise Exception('Exceeded failure threshold for gathering results!')
-
                         finally:
+                            progress.update(success_counter)
                             apps.kill_all()
+                progress.finish()
 
                 # TODO: This is where you submit to datazilla
                 print "DBG: This is the FPS object: %s" % fps
