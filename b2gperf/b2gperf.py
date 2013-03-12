@@ -255,7 +255,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                     results.setdefault(metric, []).append(fps.get(metric))
                                 else:
                                     raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
-                           
+
                             if fps:
                                 gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
                             success_counter += 1
@@ -292,6 +292,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         apps = gaiatest.GaiaApps(self.marionette)
         #wait up to 30secs for the elements we want to show up
         self.marionette.set_search_timeout(30000)
+
         def wait_for_visible(element, timeout=30):
             timeout = float(timeout) + time.time()
             print element.get_attribute("innerHTML")
@@ -304,7 +305,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 except NoSuchElementException:
                     pass
             else:
-                raise TimeoutException('Element %s not visible before timeout' % locator) 
+                raise TimeoutException('Element %s not visible before timeout' % locator)
 
         if app_name == 'Homescreen':
             self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
@@ -314,13 +315,12 @@ class B2GPerfRunner(DatazillaPerfPoster):
             name = self.marionette.find_element("class name", "contact-item")
             wait_for_visible(name)
             smooth_scroll(self.marionette, name, "y", "negative", 5000, scroll_back=False)
-            # TODO: let's see if we can use touchend to know exactly when the scroll is finished so we aren't 
-            #       measuring fps while we are not actually scrolling.
+            # TODO: let's see if we can use touchend to know exactly when the scroll is finished so we aren't measuring fps while we are not actually scrolling.
         elif app_name == 'Browser':
-            #TODO: navigate is misbehaving
+            # TODO: navigate is misbehaving
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
             print self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False)
-            while self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False) != True:
+            while not self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False):
                 print self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False)
                 time.sleep(0.1)
             # check when the tab's document is ready
@@ -331,7 +331,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 time.sleep(0.1)
             # we have to fire smooth_scroll from the browser app, so let's go back
             self.marionette.switch_to_frame()
-            apps = apps.launch(app_name) # since the app is launched, launch will switch us back to the app frame without relaunching
+            apps.launch(app_name)  # since the app is launched, launch will switch us back to the app frame without relaunching
             tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
             smooth_scroll(self.marionette, tab_dom, "y", "negative", 5000, scroll_back=True)
             # This makes no sense, but this confounding hack is the only way to get fps defined in system apps' window object for some reason.
