@@ -347,6 +347,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
             self.marionette.switch_to_frame(tab_frame)
 
         elif app_name == 'Email':
+            email = self.marionette.find_element("class name", "msg-header-author")
+            wait_for_visible(email)
             emails = self.marionette.find_elements("class name", "msg-header-author")
             #we're dynamically adding these elements from a template, and the first one found is blank.
             while not emails[0].get_attribute("innerHTML"):
