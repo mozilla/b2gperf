@@ -213,6 +213,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         caught_exception = False
 
         apps = gaiatest.GaiaApps(self.marionette)
+        data_layer = gaiatest.GaiaData(self.marionette)
         gaiatest.LockScreen(self.marionette).unlock()  # unlock
         apps.kill_all()  # kill all running apps
         self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
@@ -234,7 +235,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             time.sleep(self.delay)
                             period = 5000  # ms
                             sample_hz = 100
-                            # Launch the app
+
+                            if self.testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
+                                data_layer.enable_wifi()
+                                data_layer.connect_to_wifi(self.testvars.get('wifi'))
                             app = apps.launch(app_name, switch_to_frame=False)
 
                             # Turn on FPS
