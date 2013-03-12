@@ -236,8 +236,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             sample_hz = 100
                             # Launch the app
                             app = apps.launch(app_name, switch_to_frame=False)
-                            # Wait for app to load - TODO: can't we be smarter?
-                            time.sleep(1)
 
                             # Turn on FPS
                             self.marionette.set_script_timeout(period + 1000)
