@@ -314,7 +314,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 except NoSuchElementException:
                     pass
             else:
-                raise TimeoutException('Element %s not visible before timeout' % locator)
+                raise TimeoutException('Element not visible before timeout')
 
         if app_name == 'Homescreen':
             self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
