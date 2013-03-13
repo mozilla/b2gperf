@@ -26,6 +26,8 @@ from marionette.errors import NoSuchElementException, TimeoutException
 from gestures import smooth_scroll
 import mozdevice
 
+from wait import MarionetteWait
+
 TEST_TYPES = ['startup', 'scrollfps']
 
 
@@ -300,8 +302,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
             sys.exit(1)
 
     def scroll_app(self, app_name):
-        print "Scrolling..."
-
         touch_duration = float(200)
         self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
 
@@ -310,42 +310,22 @@ class B2GPerfRunner(DatazillaPerfPoster):
         #wait up to 30secs for the elements we want to show up
         self.marionette.set_search_timeout(30000)
 
-        def wait_for_visible(element, timeout=30):
-            timeout = float(timeout) + time.time()
-            print element.get_attribute("innerHTML")
-            #check = (lambda el : el.is_displayed()) if visible else (lambda el: (el.get_attribute("hidden")))
-            while time.time() < timeout:
-                time.sleep(0.3)
-                try:
-                    if element.is_displayed() or not element.get_attribute("hidden"):
-                        break
-                except NoSuchElementException:
-                    pass
-            else:
-                raise TimeoutException('Element not visible before timeout')
-
         if app_name == 'Homescreen':
             self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
             time.sleep(touch_duration / 1000)
             self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
         elif app_name == 'Contacts':
             name = self.marionette.find_element("class name", "contact-item")
-            wait_for_visible(name)
+            MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed() or not name.get_attribute('hidden'))
             smooth_scroll(self.marionette, name, "y", "negative", 5000, scroll_back=False)
             # TODO: let's see if we can use touchend to know exactly when the scroll is finished so we aren't measuring fps while we are not actually scrolling.
         elif app_name == 'Browser':
-            # TODO: navigate is misbehaving
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
-            print self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False)
-            while not self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False):
-                print self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.loading;", new_sandbox=False)
-                time.sleep(0.1)
+            MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.wrappedJSObject.Browser.currentTab.loading;', new_sandbox=False))
             # check when the tab's document is ready
             tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
             self.marionette.switch_to_frame(tab_frame)
-            while self.marionette.execute_script("return window.document.readyState;", new_sandbox=False) != "complete":
-                print self.marionette.execute_script("return window.document.readyState;", new_sandbox=False)
-                time.sleep(0.1)
+            MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.document.readyState;', new_sandbox=False) == 'complete')
             # we have to fire smooth_scroll from the browser app, so let's go back
             self.marionette.switch_to_frame()
             apps.launch(app_name)  # since the app is launched, launch will switch us back to the app frame without relaunching
@@ -353,15 +333,13 @@ class B2GPerfRunner(DatazillaPerfPoster):
             smooth_scroll(self.marionette, tab_dom, "y", "negative", 5000, scroll_back=True)
             # This makes no sense, but this confounding hack is the only way to get fps defined in system apps' window object for some reason.
             self.marionette.switch_to_frame(tab_frame)
-
         elif app_name == 'Email':
             email = self.marionette.find_element("class name", "msg-header-author")
-            wait_for_visible(email)
+            MarionetteWait(self.marionette, 30).until(lambda m: email.is_displayed() or not email.get_attribute('hidden'))
             emails = self.marionette.find_elements("class name", "msg-header-author")
             #we're dynamically adding these elements from a template, and the first one found is blank.
-            while not emails[0].get_attribute("innerHTML"):
-                time.sleep(0.2)
-                emails = self.marionette.find_elements("class name", "msg-header-author")
+            MarionetteWait(self.marionette, 30).until(lambda m: emails[0].get_attribute('innerHTML'))
+            emails = self.marionette.find_elements("class name", "msg-header-author")
             smooth_scroll(self.marionette, emails[0], "y", "negative", 2000, scroll_back=True)
 
 
