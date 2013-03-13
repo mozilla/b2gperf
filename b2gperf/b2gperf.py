@@ -10,6 +10,7 @@ import os
 import pkg_resources
 import sys
 import time
+import traceback
 from urlparse import urlparse
 import xml.dom.minidom
 import zipfile
@@ -188,6 +189,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                         except Exception, e:
                             apps.kill_all()
                             print e
+                            traceback.print_stack()
                             fail_counter += 1
                             if fail_counter > fail_threshold:
                                 progress.maxval = success_counter
@@ -203,6 +205,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
             except Exception, e:
                 print e
+                traceback.print_stack()
                 caught_exception = True
 
         if caught_exception:
@@ -267,6 +270,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             success_counter += 1
                         except Exception, e:
                             print e
+                            traceback.print_stack()
                             fail_counter += 1
                             if fail_counter > fail_threshold:
                                 progress.maxval = success_counter
@@ -287,6 +291,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
             except Exception, e:
                 print e
+                traceback.print_stack()
                 caught_exception = True
         if caught_exception:
             sys.exit(1)
