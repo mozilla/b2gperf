@@ -186,10 +186,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                     raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
                             apps.kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
                             success_counter += 1
-                        except Exception, e:
+                        except Exception:
                             apps.kill_all()
-                            print e
-                            traceback.print_stack()
+                            traceback.print_exc()
                             fail_counter += 1
                             if fail_counter > fail_threshold:
                                 progress.maxval = success_counter
@@ -203,9 +202,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 else:
                     print 'Results: %s' % results
 
-            except Exception, e:
-                print e
-                traceback.print_stack()
+            except Exception:
+                traceback.print_exc()
                 caught_exception = True
 
         if caught_exception:
@@ -276,9 +274,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             if fps:
                                 gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
                             success_counter += 1
-                        except Exception, e:
-                            print e
-                            traceback.print_stack()
+                        except Exception:
+                            traceback.print_exc()
                             fail_counter += 1
                             if fail_counter > fail_threshold:
                                 progress.maxval = success_counter
@@ -297,9 +294,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 else:
                     print 'Results: %s' % results
 
-            except Exception, e:
-                print e
-                traceback.print_stack()
+            except Exception:
+                traceback.print_exc()
                 caught_exception = True
         if caught_exception:
             sys.exit(1)
