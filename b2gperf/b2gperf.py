@@ -215,19 +215,27 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
         caught_exception = False
 
-        apps = gaiatest.GaiaApps(self.marionette)
-        data_layer = gaiatest.GaiaData(self.marionette)
-        gaiatest.LockScreen(self.marionette).unlock()  # unlock
-        apps.kill_all()  # kill all running apps
-        self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
-        self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
+        if not self.restart:
+            time.sleep(self.settle_time)
+
         results = {}
         for app_name in self.app_names:
             progress = ProgressBar(widgets=['%s: ' % app_name, '[', Counter(), '/%d] ' % self.iterations], maxval=self.iterations)
             progress.start()
 
+            if self.restart:
+                gaiatest.GaiaDevice(self.marionette).restart_b2g()
+                time.sleep(self.settle_time)
+
+            apps = gaiatest.GaiaApps(self.marionette)
+            data_layer = gaiatest.GaiaData(self.marionette)
+            gaiatest.LockScreen(self.marionette).unlock()  # unlock
+            apps.kill_all()  # kill all running apps
+            self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
+            self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
+
             try:
-                fps = {}
+                results = {}
                 success_counter = 0
                 fail_counter = 0
                 fail_threshold = int(self.iterations * 0.2)
