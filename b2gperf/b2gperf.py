@@ -216,7 +216,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
         if not self.restart:
             time.sleep(self.settle_time)
 
-        results = {}
         for app_name in self.app_names:
             progress = ProgressBar(widgets=['%s: ' % app_name, '[', Counter(), '/%d] ' % self.iterations], maxval=self.iterations)
             progress.start()
