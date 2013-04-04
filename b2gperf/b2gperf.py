@@ -262,14 +262,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             # Do scroll
                             self.marionette.set_script_timeout(60000)
                             self.marionette.switch_to_frame(app.frame)
-                            self.marionette.execute_script('window.addEventListener("touchend", function(){ window.wrappedJSObject.touchend = true;}, false);', new_sandbox=False)
+                            self.marionette.execute_script('window.addEventListener("touchend", function() { window.wrappedJSObject.touchend = true; }, false);', new_sandbox=False)
                             self.scroll_app(app_name)
-                            now = time.time()
-                            while (time.time() - now < 30):
-                                if (self.marionette.execute_script('return window.wrappedJSObject.touchend==true;', new_sandbox=False)):
-                                    break
-                            else:
-                                raise Exception("touchend was not fired while scrolling")
+                            MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.wrappedJSObject.touchend;', new_sandbox=False))
                             self.marionette.switch_to_frame()
                             fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()')
                             for metric in ['fps']:
@@ -324,7 +319,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
             name = self.marionette.find_element("class name", "contact-item")
             MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed() or not name.get_attribute('hidden'))
             smooth_scroll(self.marionette, name, "y", "negative", 5000, scroll_back=False)
-            # TODO: let's see if we can use touchend to know exactly when the scroll is finished so we aren't measuring fps while we are not actually scrolling.
         elif app_name == 'Browser':
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
             MarionetteWait(self.marionette, 30).until(lambda m: 'http://taskjs.org/' == m.execute_script('return window.wrappedJSObject.Browser.currentTab.url;', new_sandbox=False))
