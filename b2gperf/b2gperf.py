@@ -327,6 +327,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             # TODO: let's see if we can use touchend to know exactly when the scroll is finished so we aren't measuring fps while we are not actually scrolling.
         elif app_name == 'Browser':
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
+            MarionetteWait(self.marionette, 30).until(lambda m: 'http://taskjs.org/' == m.execute_script('return window.wrappedJSObject.Browser.currentTab.url;', new_sandbox=False))
             MarionetteWait(self.marionette, 30).until(lambda m: not m.execute_script('return window.wrappedJSObject.Browser.currentTab.loading;', new_sandbox=False))
             # check when the tab's document is ready
             tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
