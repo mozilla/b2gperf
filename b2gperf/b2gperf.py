@@ -428,7 +428,7 @@ def cli():
                       dest='test_type',
                       default='startup',
                       metavar='str',
-                      help='Type of test to run, valid types are: %s (default: startup)' % TEST_TYPES),
+                      help='type of test to run, valid types are: %s (default: startup)' % TEST_TYPES),
     parser.add_option('--testvars',
                       action='store',
                       dest='testvars',

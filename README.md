@@ -36,6 +36,7 @@ If you anticipate modifying b2gperf, you can instead:
       --no-restart      do not restart B2G between tests
       --settle-time     time to wait before initial launch (default: 60)
       --testvars=str    path to a json file with any test data required
+      --test-type=str   type of test to run, valid types are: ['startup', 'scrollfps'] (default: startup)
 
 ## Test Variables
 
