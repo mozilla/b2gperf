@@ -262,10 +262,16 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             # Do scroll
                             self.marionette.set_script_timeout(60000)
                             self.marionette.switch_to_frame(app.frame)
+                            self.marionette.execute_script('window.addEventListener("touchend", function(){ window.wrappedJSObject.touchend = true;}, false);', new_sandbox=False)
                             self.scroll_app(app_name)
-                            self.marionette.execute_async_script('window.addEventListener("touchend", function(){ marionetteScriptFinished();}, false)', new_sandbox=False)
+                            now = time.time()
+                            while (time.time() - now < 30):
+                                if (self.marionette.execute_script('return window.wrappedJSObject.touchend==true;', new_sandbox=False)):
+                                    break
+                            else:
+                                raise Exception("touchend was not fired while scrolling")
                             self.marionette.switch_to_frame()
-                            fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()', new_sandbox=False)
+                            fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()')
                             for metric in ['fps']:
                                 if fps.get(metric):
                                     results.setdefault(metric, []).append(fps.get(metric))
@@ -321,7 +327,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             # TODO: let's see if we can use touchend to know exactly when the scroll is finished so we aren't measuring fps while we are not actually scrolling.
         elif app_name == 'Browser':
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
-            MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.wrappedJSObject.Browser.currentTab.loading;', new_sandbox=False))
+            MarionetteWait(self.marionette, 30).until(lambda m: not m.execute_script('return window.wrappedJSObject.Browser.currentTab.loading;', new_sandbox=False))
             # check when the tab's document is ready
             tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
             self.marionette.switch_to_frame(tab_frame)
@@ -331,8 +337,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
             apps.launch(app_name)  # since the app is launched, launch will switch us back to the app frame without relaunching
             tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
             smooth_scroll(self.marionette, tab_dom, "y", "negative", 5000, scroll_back=True)
-            # This makes no sense, but this confounding hack is the only way to get fps defined in system apps' window object for some reason.
-            self.marionette.switch_to_frame(tab_frame)
         elif app_name == 'Email':
             email = self.marionette.find_element("class name", "msg-header-author")
             MarionetteWait(self.marionette, 30).until(lambda m: email.is_displayed() or not email.get_attribute('hidden'))
