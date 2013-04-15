@@ -22,9 +22,7 @@ import dzclient
 import gaiatest
 from marionette import Marionette
 from marionette import MarionetteTouchMixin
-from marionette.errors import NoSuchElementException, TimeoutException
 from gestures import smooth_scroll
-import mozdevice
 
 from wait import MarionetteWait
 
@@ -41,12 +39,12 @@ class DatazillaPerfPoster(object):
 
         self.submit_report = True
         self.ancillary_data = {}
+        self.device = gaiatest.GaiaDevice(self.marionette)
 
-        if gaiatest.GaiaDevice(self.marionette).is_android_build:
+        if self.device.is_android_build:
             # get gaia, gecko and build revisions
             try:
-                device_manager = mozdevice.DeviceManagerADB()
-                app_zip = device_manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
+                app_zip = self.device.manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
                 with zipfile.ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
                     self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
             except zipfile.BadZipfile:
@@ -62,7 +60,7 @@ class DatazillaPerfPoster(object):
                     device_name = line[len(device_prefix):]
 
             try:
-                sources_xml = sources and xml.dom.minidom.parse(sources) or xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
+                sources_xml = sources and xml.dom.minidom.parse(sources) or xml.dom.minidom.parseString(self.device.manager.catFile('system/sources.xml'))
                 for element in sources_xml.getElementsByTagName('project'):
                     path = element.getAttribute('path')
                     revision = element.getAttribute('revision')
@@ -132,14 +130,14 @@ class DatazillaPerfPoster(object):
 class B2GPerfRunner(DatazillaPerfPoster):
 
     def measure_app_perf(self, app_names, delay=1, iterations=30, restart=True,
-                         settle_time=60, test_type='startup', testvars={}):
+                         settle_time=60, test_type='startup', testvars=None):
         # Store our attributes so tests can use them
         self.app_names = app_names
         self.delay = delay
         self.iterations = iterations
         self.restart = restart
         self.settle_time = settle_time
-        self.testvars = testvars
+        self.testvars = testvars or {}
 
         if test_type == 'startup':
             print "running startup test"
@@ -151,6 +149,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             print "ERROR: Invalid test type, it should be one of %s" % TEST_TYPES
 
     def test_startup(self):
+        requires_connection = ['marketplace']
         caught_exception = False
 
         self.marionette.set_script_timeout(60000)
@@ -163,7 +162,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             progress.start()
 
             if self.restart:
-                gaiatest.GaiaDevice(self.marionette).restart_b2g()
+                self.device.restart_b2g()
                 time.sleep(self.settle_time)
 
             apps = gaiatest.GaiaApps(self.marionette)
@@ -184,8 +183,11 @@ class B2GPerfRunner(DatazillaPerfPoster):
                     else:
                         try:
                             if self.testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
-                                data_layer.enable_wifi()
-                                data_layer.connect_to_wifi(self.testvars.get('wifi'))
+                                if app_name.lower() in requires_connection:
+                                    data_layer.enable_wifi()
+                                    data_layer.connect_to_wifi(self.testvars.get('wifi'))
+                                else:
+                                    data_layer.disable_wifi()
                             time.sleep(self.delay)
                             result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
                             if not result:
@@ -221,6 +223,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             sys.exit(1)
 
     def test_scrollfps(self):
+        requires_connection = ['browser']
         self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
         caught_exception = False
 
@@ -232,7 +235,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             progress.start()
 
             if self.restart:
-                gaiatest.GaiaDevice(self.marionette).restart_b2g()
+                self.device.restart_b2g()
                 time.sleep(self.settle_time)
 
             apps = gaiatest.GaiaApps(self.marionette)
@@ -258,8 +261,12 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             sample_hz = 100
 
                             if self.testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
-                                data_layer.enable_wifi()
-                                data_layer.connect_to_wifi(self.testvars.get('wifi'))
+                                if app_name.lower() in requires_connection:
+                                    data_layer.enable_wifi()
+                                    data_layer.connect_to_wifi(self.testvars.get('wifi'))
+                                else:
+                                    data_layer.disable_wifi()
+
                             app = apps.launch(app_name, switch_to_frame=False)
 
                             # Turn on FPS

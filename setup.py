@@ -15,9 +15,8 @@ except (OSError, IOError):
     description = ''
 
 # dependencies
-deps = ['gaiatest>=0.7',
+deps = ['gaiatest==0.8',
         'datazilla>=1.2',
-        'mozdevice>=0.19',
         'progressbar==2.3']
 
 setup(name='b2gperf',
