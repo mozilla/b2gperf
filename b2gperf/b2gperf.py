@@ -200,7 +200,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             apps.kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
                             success_counter += 1
                         except Exception:
-                            apps.kill_all()
                             traceback.print_exc()
                             fail_counter += 1
                             if fail_counter > fail_threshold:
@@ -208,6 +207,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                 progress.finish()
                                 raise Exception('Exceeded failure threshold for gathering results!')
                         finally:
+                            try:
+                                apps.kill_all()
+                            except:
+                                pass
                             progress.update(success_counter)
                 progress.finish()
                 if self.submit_report:
