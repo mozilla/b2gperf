@@ -54,6 +54,13 @@ class DatazillaPerfPoster(object):
                 # the device, so we fall back to the sources file
                 pass
 
+            device_name = 'unknown'
+            build_prop = device_manager.pullFile('/system/build.prop')
+            device_prefix = 'ro.product.model='
+            for line in build_prop.split('\n'):
+                if line.startswith(device_prefix):
+                    device_name = line[len(device_prefix):]
+
             try:
                 sources_xml = sources and xml.dom.minidom.parse(sources) or xml.dom.minidom.parseString(device_manager.catFile('system/sources.xml'))
                 for element in sources_xml.getElementsByTagName('project'):
@@ -77,6 +84,7 @@ class DatazillaPerfPoster(object):
             'oauth key': datazilla_config['oauth_key'],
             'oauth secret': datazilla_config['oauth_secret'],
             'machine name': mac_address or 'unknown',
+            'device name': device_name,
             'os version': settings.get('deviceinfo.os'),
             'id': settings.get('deviceinfo.platform_build_id')}
 
@@ -115,6 +123,7 @@ class DatazillaPerfPoster(object):
         req.add_datazilla_result(res)
         for dataset in req.datasets():
             dataset['test_build'].update(self.ancillary_data)
+            dataset['test_machine'].update({'type': self.required.get('device name')})
             print 'Submitting results to DataZilla: %s' % dataset
             response = req.send(dataset)
             print 'Response: %s' % response.read()
