@@ -56,7 +56,7 @@ class DatazillaPerfPoster(object):
 
             device_name = 'unknown'
             build_prop = device_manager.pullFile('/system/build.prop')
-            device_prefix = 'ro.product.model='
+            device_prefix = 'ro.product.device='
             for line in build_prop.split('\n'):
                 if line.startswith(device_prefix):
                     device_name = line[len(device_prefix):]
