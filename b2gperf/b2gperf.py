@@ -286,7 +286,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             self.scroll_app(app_name)
                             MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.wrappedJSObject.touchend;', new_sandbox=False))
                             self.marionette.switch_to_frame()
-                            fps = self.marionette.execute_async_script('window.wrappedJSObject.fps.stop_fps()')
+                            fps = self.marionette.execute_script('return window.wrappedJSObject.fps.stop_fps();')
                             for metric in ['fps']:
                                 if fps.get(metric):
                                     results.setdefault(metric, []).append(fps.get(metric))

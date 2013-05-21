@@ -57,10 +57,10 @@ fps_meter.prototype = {
     console.log("DBG: num_frames: " + num_frames);
     console.log("DBG: fps: " + framepersec);*/
 
-    marionetteScriptFinished({origin: this._app_origin,
-                      time_elapsed: time_elapsed,
-                      number_frames: num_frames,
-                      fps: framepersec});
+    return {origin: this._app_origin,
+            time_elapsed: time_elapsed,
+            number_frames: num_frames,
+            fps: framepersec};
   }
 };
 
