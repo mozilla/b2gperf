@@ -167,6 +167,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
             apps = gaiatest.GaiaApps(self.marionette)
             data_layer = gaiatest.GaiaData(self.marionette)
+            data_layer.set_setting('audio.volume.content', 5)  # set volume
             gaiatest.LockScreen(self.marionette).unlock()  # unlock
             apps.kill_all()  # kill all running apps
             self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
