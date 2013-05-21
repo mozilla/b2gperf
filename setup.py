@@ -5,7 +5,7 @@
 import os
 from setuptools import setup, find_packages
 
-version = '0.3.3'
+version = '0.3.4'
 
 # get documentation from the README
 try:
