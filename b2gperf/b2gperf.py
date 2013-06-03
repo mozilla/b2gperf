@@ -139,6 +139,11 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.settle_time = settle_time
         self.testvars = testvars or {}
 
+        # Add various attributes to the report
+        self.ancillary_data['delay'] = self.delay
+        self.ancillary_data['restart'] = self.restart
+        self.ancillary_data['settle_time'] = self.settle_time
+
         if test_type == 'startup':
             print "running startup test"
             self.test_startup()
