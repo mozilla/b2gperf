@@ -5,7 +5,7 @@ function launch_app(app_name) {
     if (app) {
       let windowManager = window.wrappedJSObject.WindowManager;
       let runningApps = windowManager.getRunningApps();
-      let origin = app.origin;
+      let origin = GaiaApps.getRunningAppOrigin(name);
 
       if (windowManager.getDisplayedApp() == origin) {
         console.error("app with origin '" + origin + "' is already running");
@@ -26,7 +26,8 @@ function launch_app(app_name) {
               marionetteScriptFinished(result);
             },
             function() {
-              return window.wrappedJSObject.WindowManager.getDisplayedApp() === origin;
+              origin = GaiaApps.getRunningAppOrigin(name);
+              return !!origin;
             }
           );
         });
