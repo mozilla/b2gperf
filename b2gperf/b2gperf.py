@@ -20,8 +20,8 @@ from progressbar import ProgressBar
 
 import dzclient
 import gaiatest
+from marionette import Actions
 from marionette import Marionette
-from marionette import MarionetteTouchMixin
 from gestures import smooth_scroll
 
 from wait import MarionetteWait
@@ -329,17 +329,27 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
     def scroll_app(self, app_name):
         touch_duration = float(200)
-        self.marionette.__class__ = type('Marionette', (Marionette, MarionetteTouchMixin), {})
 
-        self.marionette.setup_touch()
         apps = gaiatest.GaiaApps(self.marionette)
         #wait up to 30secs for the elements we want to show up
         self.marionette.set_search_timeout(30000)
 
         if app_name == 'Homescreen':
-            self.marionette.flick(self.marionette.find_element('id', 'landing-page'), '90%', '50%', '10%', '50%', touch_duration)
-            time.sleep(touch_duration / 1000)
-            self.marionette.flick(self.marionette.find_elements('css selector', '.page')[1], '10%', '50%', '90%', '50%', touch_duration)
+            action = Actions(self.marionette)
+            landing_page = self.marionette.find_element('id', 'landing-page')
+            action.flick(
+                landing_page,
+                landing_page.size['width'] / 100 * 90,
+                landing_page.size['width'] / 2,
+                landing_page.size['width'] / 100 * 10,
+                landing_page.size['width'] / 2, touch_duration).perform()
+            first_page = self.marionette.find_elements('css selector', '.page')[1]
+            action.flick(
+                first_page,
+                first_page.size['width'] / 100 * 10,
+                first_page.size['width'] / 2,
+                first_page.size['width'] / 100 * 90,
+                first_page.size['width'] / 2, touch_duration).perform()
         elif app_name == 'Contacts':
             name = self.marionette.find_element("class name", "contact-item")
             MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed() or not name.get_attribute('hidden'))
