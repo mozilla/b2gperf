@@ -222,7 +222,14 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 if self.submit_report:
                     self.post_to_datazilla(results, app_name)
                 else:
-                    print 'Results: %s' % results
+                    print 'Results for %s:' % app_name
+                    for key, values in results.iteritems():
+                        print '* %s: avg:%s, max:%s, min:%s, all:%s' % (
+                            key,
+                            sum(values) / len(values),
+                            max(values),
+                            min(values),
+                            ','.join(str(x) for x in values))
 
             except Exception:
                 traceback.print_exc()
