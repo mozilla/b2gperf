@@ -22,7 +22,7 @@ import dzclient
 import gaiatest
 from marionette import Actions
 from marionette import Marionette
-from gestures import smooth_scroll
+from marionette.gestures import smooth_scroll
 
 from wait import MarionetteWait
 
@@ -353,7 +353,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         elif app_name == 'Contacts':
             name = self.marionette.find_element("class name", "contact-item")
             MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed() or not name.get_attribute('hidden'))
-            smooth_scroll(self.marionette, name, "y", "negative", 5000, scroll_back=False)
+            smooth_scroll(self.marionette, name, "y", -1, 5000, scroll_back=False)
         elif app_name == 'Browser':
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
             MarionetteWait(self.marionette, 30).until(lambda m: 'http://taskjs.org/' == m.execute_script('return window.wrappedJSObject.Browser.currentTab.url;', new_sandbox=False))
@@ -366,7 +366,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             self.marionette.switch_to_frame()
             apps.launch(app_name)  # since the app is launched, launch will switch us back to the app frame without relaunching
             tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
-            smooth_scroll(self.marionette, tab_dom, "y", "negative", 5000, scroll_back=True)
+            smooth_scroll(self.marionette, tab_dom, "y", -1, 5000, scroll_back=True)
         elif app_name == 'Email':
             email = self.marionette.find_element("class name", "msg-header-author")
             MarionetteWait(self.marionette, 30).until(lambda m: email.is_displayed() or not email.get_attribute('hidden'))
@@ -374,7 +374,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             #we're dynamically adding these elements from a template, and the first one found is blank.
             MarionetteWait(self.marionette, 30).until(lambda m: emails[0].get_attribute('innerHTML'))
             emails = self.marionette.find_elements("class name", "msg-header-author")
-            smooth_scroll(self.marionette, emails[0], "y", "negative", 2000, scroll_back=True)
+            smooth_scroll(self.marionette, emails[0], "y", -1, 2000, scroll_back=True)
 
 
 class dzOptionParser(OptionParser):
