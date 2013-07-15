@@ -23,7 +23,6 @@ fps_meter.prototype = {
       if (app) {
         self._app_origin = GaiaApps.getRunningAppOrigin(name);
 
-        let utils = window.QueryInterface(Components.interfaces.nsIInterfaceRequestor).getInterface(Components.interfaces.nsIDOMWindowUtils);
         let cf = {}, cfps = {}, tf = {}, tfps = {};
         let showFPS = function showFPS() {
           try {
