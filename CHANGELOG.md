@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.5
+* Fixed script timeout issue in FPS tests
+* Updated locator for Contacts app
+
 ## 0.4
 * Added average, min, and max values when reporting results
 * Use gestures from the Marionette client
