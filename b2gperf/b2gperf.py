@@ -358,8 +358,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 first_page.size['width'] / 100 * 90,
                 first_page.size['width'] / 2, touch_duration).perform()
         elif app_name == 'Contacts':
-            name = self.marionette.find_element("class name", "contact-item")
-            MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed() or not name.get_attribute('hidden'))
+            name = self.marionette.find_element("css selector", ".contact-item p > strong")
+            MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed())
             smooth_scroll(self.marionette, name, "y", -1, 5000, scroll_back=False)
         elif app_name == 'Browser':
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
