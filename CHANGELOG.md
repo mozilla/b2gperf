@@ -1,5 +1,8 @@
 # Change Log
 
+## 0.6
+* Fixed homescreen FPS test
+
 ## 0.5
 * Fixed script timeout issue in FPS tests
 * Updated locator for Contacts app
