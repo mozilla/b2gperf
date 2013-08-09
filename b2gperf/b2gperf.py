@@ -350,7 +350,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 landing_page.size['width'] / 2,
                 landing_page.size['width'] / 100 * 10,
                 landing_page.size['width'] / 2, touch_duration).perform()
-            first_page = self.marionette.find_elements('css selector', '.page')[1]
+            first_page = self.marionette.find_elements('css selector', '.page')[0]
             action.flick(
                 first_page,
                 first_page.size['width'] / 100 * 10,
