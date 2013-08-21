@@ -15,6 +15,7 @@ from urlparse import urlparse
 import xml.dom.minidom
 import zipfile
 
+import mozlog
 from progressbar import Counter
 from progressbar import ProgressBar
 
@@ -31,11 +32,18 @@ TEST_TYPES = ['startup', 'scrollfps']
 
 class DatazillaPerfPoster(object):
 
-    def __init__(self, marionette, datazilla_config=None, sources=None):
+    def __init__(self, marionette, datazilla_config=None, sources=None, log_level='INFO'):
+        # Set up logging
+        handler = mozlog.StreamHandler()
+        handler.setFormatter(B2GPerfFormatter())
+        self.logger = mozlog.getLogger(self.__class__.__name__, handler)
+        self.logger.setLevel(getattr(mozlog, log_level.upper()))
+
         self.marionette = marionette
 
         settings = gaiatest.GaiaData(self.marionette).all_settings  # get all settings
         mac_address = self.marionette.execute_script('return navigator.mozWifiManager && navigator.mozWifiManager.macAddress;')
+        self.logger.debug('Device MAC address: %s' % mac_address or 'Unknown')
 
         self.submit_report = True
         self.ancillary_data = {}
@@ -46,7 +54,9 @@ class DatazillaPerfPoster(object):
             try:
                 app_zip = self.device.manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
                 with zipfile.ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
-                    self.ancillary_data['gaia_revision'] = f.read().splitlines()[0]
+                    gaia_revision = f.read().splitlines()[0]
+                    self.logger.debug('Gaia revision: %s' % gaia_revision)
+                    self.ancillary_data['gaia_revision'] = gaia_revision
             except zipfile.BadZipfile:
                 # the zip file will not exist if Gaia has not been flashed to
                 # the device, so we fall back to the sources file
@@ -58,6 +68,7 @@ class DatazillaPerfPoster(object):
             for line in build_prop.split('\n'):
                 if line.startswith(device_prefix):
                     device_name = line[len(device_prefix):]
+                    self.logger.debug('Device name: %s' % device_name)
 
             try:
                 sources_xml = sources and xml.dom.minidom.parse(sources) or xml.dom.minidom.parseString(self.device.manager.catFile('system/sources.xml'))
@@ -65,8 +76,10 @@ class DatazillaPerfPoster(object):
                     path = element.getAttribute('path')
                     revision = element.getAttribute('revision')
                     if not self.ancillary_data.get('gaia_revision') and path in 'gaia':
+                        self.logger.debug('Gaia revision: %s' % revision)
                         self.ancillary_data['gaia_revision'] = revision
                     if path in ['gecko', 'build']:
+                        self.logger.debug('%s revision: %s' % (path.capitalize(), revision))
                         self.ancillary_data['_'.join([path, 'revision'])] = revision
             except:
                 pass
@@ -89,10 +102,10 @@ class DatazillaPerfPoster(object):
         for key, value in self.required.items():
             if not value:
                 self.submit_report = False
-                print 'Missing required DataZilla field: %s' % key
+                self.logger.warn('Missing required DataZilla field: %s' % key)
 
         if not self.submit_report:
-            print 'Reports will not be submitted to DataZilla'
+            self.logger.info('Reports will not be submitted to DataZilla')
 
     def post_to_datazilla(self, results, app_name):
         # Prepare DataZilla results
@@ -122,9 +135,9 @@ class DatazillaPerfPoster(object):
         for dataset in req.datasets():
             dataset['test_build'].update(self.ancillary_data)
             dataset['test_machine'].update({'type': self.required.get('device name')})
-            print 'Submitting results to DataZilla: %s' % dataset
+            self.logger.info('Submitting results to DataZilla: %s' % dataset)
             response = req.send(dataset)
-            print 'Response: %s' % response.read()
+            self.logger.info('Response: %s' % response.read())
 
 
 class B2GPerfRunner(DatazillaPerfPoster):
@@ -145,13 +158,13 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.ancillary_data['settle_time'] = self.settle_time
 
         if test_type == 'startup':
-            print "running startup test"
+            self.logger.info('Running startup tests')
             self.test_startup()
         elif test_type == 'scrollfps':
-            print 'running fps test'
+            self.logger.info('Running FPS tests')
             self.test_scrollfps()
         else:
-            print "ERROR: Invalid test type, it should be one of %s" % TEST_TYPES
+            self.logger.error('Invalid test type, it should be one of %s' % TEST_TYPES)
 
     def test_startup(self):
         requires_connection = ['marketplace']
@@ -160,6 +173,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.marionette.set_script_timeout(60000)
 
         if not self.restart:
+            self.logger.debug('Settling for %d seconds' % self.settle_time)
             time.sleep(self.settle_time)
 
         for app_name in self.app_names:
@@ -167,15 +181,27 @@ class B2GPerfRunner(DatazillaPerfPoster):
             progress.start()
 
             if self.restart:
+                self.logger.debug('Restarting B2G')
                 self.device.restart_b2g()
+                self.logger.debug('Settling for %d seconds' % self.settle_time)
                 time.sleep(self.settle_time)
 
             apps = gaiatest.GaiaApps(self.marionette)
             data_layer = gaiatest.GaiaData(self.marionette)
-            data_layer.set_setting('audio.volume.content', 5)  # set volume
-            gaiatest.LockScreen(self.marionette).unlock()  # unlock
-            apps.kill_all()  # kill all running apps
-            self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
+
+            safe_volume = 5
+            self.logger.debug('Setting content volume to %d' % safe_volume)
+            data_layer.set_setting('audio.volume.content', safe_volume)
+
+            self.logger.debug('Unlocking device')
+            gaiatest.LockScreen(self.marionette).unlock()
+
+            self.logger.debug('Killing all running apps')
+            apps.kill_all()
+
+            self.logger.debug('Returning to home screen')
+            self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
+
             self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
 
             try:
@@ -190,46 +216,58 @@ class B2GPerfRunner(DatazillaPerfPoster):
                         try:
                             if self.testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
                                 if app_name.lower() in requires_connection:
+                                    self.logger.debug('Connecting to WiFi')
                                     data_layer.enable_wifi()
                                     data_layer.connect_to_wifi(self.testvars.get('wifi'))
                                 else:
+                                    self.logger.debug('Disabling WiFi')
                                     data_layer.disable_wifi()
+                            self.logger.debug('Waiting for %d seconds' % self.delay)
                             time.sleep(self.delay)
+                            self.logger.debug("Launching '%s'" % app_name)
                             result = self.marionette.execute_async_script('launch_app("%s")' % app_name)
                             if not result:
                                 raise Exception('Error launching app')
                             for metric in ['cold_load_time']:
                                 if result.get(metric):
-                                    results.setdefault(metric, []).append(result.get(metric))
+                                    value = result.get(metric)
+                                    self.logger.debug("Metric '%s' returned: %s" % (metric, value))
+                                    results.setdefault(metric, []).append(value)
                                 else:
                                     raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
-                            apps.kill(gaiatest.GaiaApp(origin=result.get('origin')))  # kill application
+                            self.logger.debug("Killing '%s'" % app_name)
+                            apps.kill(gaiatest.GaiaApp(origin=result.get('origin')))
                             success_counter += 1
                         except Exception:
                             traceback.print_exc()
                             fail_counter += 1
+                            self.logger.debug('Exception within failure threshold')
                             if fail_counter > fail_threshold:
                                 progress.maxval = success_counter
                                 progress.finish()
                                 raise Exception('Exceeded failure threshold for gathering results!')
                         finally:
                             try:
+                                self.logger.debug('Killing all running apps')
                                 apps.kill_all()
                             except:
                                 pass
                             progress.update(success_counter)
                 progress.finish()
                 if self.submit_report:
+                    self.logger.debug('Submitting report')
                     self.post_to_datazilla(results, app_name)
                 else:
-                    print 'Results for %s:' % app_name
                     for key, values in results.iteritems():
-                        print '* %s: avg:%s, max:%s, min:%s, all:%s' % (
-                            key,
+                        result_summary = 'avg:%s, max:%s, min:%s, all:%s' % (
                             sum(values) / len(values),
                             max(values),
                             min(values),
                             ','.join(str(x) for x in values))
+                        self.logger.info('Results for %s, %s: %s' % (
+                            app_name,
+                            key,
+                            result_summary))
 
             except Exception:
                 traceback.print_exc()
@@ -244,6 +282,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         caught_exception = False
 
         if not self.restart:
+            self.logger.debug('Settling for %d seconds' % self.settle_time)
             time.sleep(self.settle_time)
 
         for app_name in self.app_names:
@@ -251,14 +290,23 @@ class B2GPerfRunner(DatazillaPerfPoster):
             progress.start()
 
             if self.restart:
+                self.logger.debug('Restarting B2G')
                 self.device.restart_b2g()
+                self.logger.debug('Settling for %d seconds' % self.settle_time)
                 time.sleep(self.settle_time)
 
             apps = gaiatest.GaiaApps(self.marionette)
             data_layer = gaiatest.GaiaData(self.marionette)
-            gaiatest.LockScreen(self.marionette).unlock()  # unlock
-            apps.kill_all()  # kill all running apps
-            self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')  # return to home screen
+
+            self.logger.debug('Unlocking device')
+            gaiatest.LockScreen(self.marionette).unlock()
+
+            self.logger.debug('Killing all running apps')
+            apps.kill_all()
+
+            self.logger.debug('Returning to home screen')
+            self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
+
             self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
 
             try:
@@ -272,21 +320,25 @@ class B2GPerfRunner(DatazillaPerfPoster):
                     else:
                         try:
                             self.marionette.set_script_timeout(60000)
+                            self.logger.debug('Waiting for %d seconds' % self.delay)
                             time.sleep(self.delay)
                             period = 5000  # ms
                             sample_hz = 100
 
                             if self.testvars.get('wifi') and self.marionette.execute_script('return window.navigator.mozWifiManager !== undefined'):
                                 if app_name.lower() in requires_connection:
+                                    self.logger.debug('Connecting to WiFi')
                                     data_layer.enable_wifi()
                                     data_layer.connect_to_wifi(self.testvars.get('wifi'))
                                 else:
+                                    self.logger.debug('Disabling WiFi')
                                     data_layer.disable_wifi()
 
                             app = apps.launch(app_name, switch_to_frame=False)
 
                             # Turn on FPS
                             self.marionette.set_script_timeout(period + 1000)
+                            self.logger.debug('Start measuring FPS')
                             result = self.marionette.execute_async_script('window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); window.wrappedJSObject.fps.start_fps();' % (app_name, period, sample_hz))
                             if not result:
                                 raise Exception('Error turning on fps measurement')
@@ -298,35 +350,51 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             self.scroll_app(app_name)
                             MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.wrappedJSObject.touchend;', new_sandbox=False))
                             self.marionette.switch_to_frame()
+                            self.logger.debug('Stop measuring FPS')
                             fps = self.marionette.execute_script('return window.wrappedJSObject.fps.stop_fps();')
                             for metric in ['fps']:
                                 if fps.get(metric):
-                                    results.setdefault(metric, []).append(fps.get(metric))
+                                    value = fps.get(metric)
+                                    self.logger.debug("Metric '%s' returned: %s" % (metric, value))
+                                    results.setdefault(metric, []).append(value)
                                 else:
                                     raise Exception('%s missing %s metric in iteration %s' % (app_name, metric, i + 1))
 
                             if fps:
-                                gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))  # kill application
+                                self.logger.debug("Killing '%s'" % app_name)
+                                gaiatest.GaiaApps(self.marionette).kill(gaiatest.GaiaApp(origin=fps.get('origin')))
                             success_counter += 1
                         except Exception:
                             traceback.print_exc()
                             fail_counter += 1
+                            self.logger.debug('Exception within failure threshold')
                             if fail_counter > fail_threshold:
                                 progress.maxval = success_counter
                                 progress.finish()
                                 raise Exception('Exceeded failure threshold for gathering results!')
                         finally:
+                            try:
+                                self.logger.debug('Killing all running apps')
+                                apps.kill_all()
+                            except:
+                                pass
                             progress.update(success_counter)
-                            apps.kill_all()
                 progress.finish()
 
-                # TODO: This is where you submit to datazilla
-                print "DBG: This is the FPS object: %s" % fps
-                print "DBG: This is the results object %s" % results
                 if self.submit_report:
+                    self.logger.debug('Submitting report')
                     self.post_to_datazilla(results, app_name)
                 else:
-                    print 'Results: %s' % results
+                    for key, values in results.iteritems():
+                        result_summary = 'avg:%s, max:%s, min:%s, all:%s' % (
+                            sum(values) / len(values),
+                            max(values),
+                            min(values),
+                            ','.join(str(x) for x in values))
+                        self.logger.info('Results for %s, %s: %s' % (
+                            app_name,
+                            key,
+                            result_summary))
 
             except Exception:
                 traceback.print_exc()
@@ -344,6 +412,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         if app_name == 'Homescreen':
             action = Actions(self.marionette)
             landing_page = self.marionette.find_element('id', 'landing-page')
+            self.logger.debug('Swiping to first page of apps')
             action.flick(
                 landing_page,
                 landing_page.size['width'] / 100 * 90,
@@ -351,6 +420,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 landing_page.size['width'] / 100 * 10,
                 landing_page.size['width'] / 2, touch_duration).perform()
             first_page = self.marionette.find_elements('css selector', '.page')[0]
+            self.logger.debug('Swiping back to home screen')
             action.flick(
                 first_page,
                 first_page.size['width'] / 100 * 10,
@@ -360,6 +430,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         elif app_name == 'Contacts':
             name = self.marionette.find_element("css selector", ".contact-item p > strong")
             MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed())
+            self.logger.debug('Scrolling through contacts')
             smooth_scroll(self.marionette, name, "y", -1, 5000, scroll_back=False)
         elif app_name == 'Browser':
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
@@ -373,6 +444,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             self.marionette.switch_to_frame()
             apps.launch(app_name)  # since the app is launched, launch will switch us back to the app frame without relaunching
             tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
+            self.logger.debug('Scrolling through browser content')
             smooth_scroll(self.marionette, tab_dom, "y", -1, 5000, scroll_back=True)
         elif app_name == 'Email':
             email = self.marionette.find_element("class name", "msg-header-author")
@@ -381,7 +453,19 @@ class B2GPerfRunner(DatazillaPerfPoster):
             #we're dynamically adding these elements from a template, and the first one found is blank.
             MarionetteWait(self.marionette, 30).until(lambda m: emails[0].get_attribute('innerHTML'))
             emails = self.marionette.find_elements("class name", "msg-header-author")
+            self.logger.debug('Scrolling through emails')
             smooth_scroll(self.marionette, emails[0], "y", -1, 2000, scroll_back=True)
+
+
+class B2GPerfFormatter(mozlog.MozFormatter):
+
+    def format(self, record):
+        record.message = record.getMessage()
+        import datetime
+        record.timestamp = datetime.datetime.fromtimestamp(int(record.created)).strftime('%Y-%m-%d %H:%M:%S')
+        sep = ' | '
+        fmt = sep.join(['%(timestamp)s', '%(levelname)s', '%(message)s'])
+        return fmt % record.__dict__
 
 
 class dzOptionParser(OptionParser):
@@ -452,6 +536,12 @@ def cli():
                       default=30,
                       metavar='int',
                       help='number of times to launch each app (default: %default)')
+    parser.add_option('--log-level',
+                      action='store',
+                      dest='log_level',
+                      default='INFO',
+                      metavar='str',
+                      help='threshold for log output (default: %default)')
     parser.add_option('--no-restart',
                       action='store_false',
                       dest='restart',
@@ -506,7 +596,8 @@ def cli():
     marionette.start_session()
     b2gperf = B2GPerfRunner(marionette,
                             datazilla_config=datazilla_config,
-                            sources=options.sources)
+                            sources=options.sources,
+                            log_level=options.log_level)
     b2gperf.measure_app_perf(
         app_names=args,
         delay=options.delay,

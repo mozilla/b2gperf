@@ -32,6 +32,7 @@ If you anticipate modifying b2gperf, you can instead:
       --dz-key=str      oauth key for datazilla server
       --dz-secret=str   oauth secret for datazilla server
       --delay=float     duration (in seconds) to wait before each iteration
+      --log-level=str   threshold for log output (default: INFO)
       --iterations=int  number of times to launch each app (default: 30)
       --no-restart      do not restart B2G between tests
       --settle-time     time to wait before initial launch (default: 60)
