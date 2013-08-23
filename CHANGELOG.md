@@ -1,5 +1,8 @@
 # Change Log
 
+## 0.7
+* Added console level logging and debugging
+
 ## 0.6
 * Fixed homescreen FPS test
 
