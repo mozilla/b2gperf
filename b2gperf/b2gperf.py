@@ -409,7 +409,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         #wait up to 30secs for the elements we want to show up
         self.marionette.set_search_timeout(30000)
 
-        if app_name == 'Homescreen':
+        if app_name.lower() == 'homescreen':
             action = Actions(self.marionette)
             landing_page = self.marionette.find_element('id', 'landing-page')
             self.logger.debug('Swiping to first page of apps')
@@ -427,12 +427,12 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 first_page.size['width'] / 2,
                 first_page.size['width'] / 100 * 90,
                 first_page.size['width'] / 2, touch_duration).perform()
-        elif app_name == 'Contacts':
+        elif app_name.lower() == 'contacts':
             name = self.marionette.find_element("css selector", ".contact-item p > strong")
             MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed())
             self.logger.debug('Scrolling through contacts')
             smooth_scroll(self.marionette, name, "y", -1, 5000, scroll_back=False)
-        elif app_name == 'Browser':
+        elif app_name.lower() == 'browser':
             self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
             MarionetteWait(self.marionette, 30).until(lambda m: 'http://taskjs.org/' == m.execute_script('return window.wrappedJSObject.Browser.currentTab.url;', new_sandbox=False))
             MarionetteWait(self.marionette, 30).until(lambda m: not m.execute_script('return window.wrappedJSObject.Browser.currentTab.loading;', new_sandbox=False))
@@ -446,7 +446,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
             self.logger.debug('Scrolling through browser content')
             smooth_scroll(self.marionette, tab_dom, "y", -1, 5000, scroll_back=True)
-        elif app_name == 'Email':
+        elif app_name.lower() == 'email':
             email = self.marionette.find_element("class name", "msg-header-author")
             MarionetteWait(self.marionette, 30).until(lambda m: email.is_displayed() or not email.get_attribute('hidden'))
             emails = self.marionette.find_elements("class name", "msg-header-author")
@@ -455,6 +455,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
             emails = self.marionette.find_elements("class name", "msg-header-author")
             self.logger.debug('Scrolling through emails')
             smooth_scroll(self.marionette, emails[0], "y", -1, 2000, scroll_back=True)
+        else:
+            message = 'Unsupported app for scrollfps tests: %s' % app_name
+            self.logger.exception(message)
+            raise Exception(message)
 
 
 class B2GPerfFormatter(mozlog.MozFormatter):
