@@ -336,6 +336,11 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
                             app = apps.launch(app_name, switch_to_frame=False)
 
+                            # Prepare app
+                            self.marionette.switch_to_frame(app.frame)
+                            self.prepare_app(app_name)
+                            self.marionette.switch_to_frame()
+
                             # Turn on FPS
                             self.marionette.set_script_timeout(period + 1000)
                             self.logger.debug('Start measuring FPS')
@@ -402,10 +407,18 @@ class B2GPerfRunner(DatazillaPerfPoster):
         if caught_exception:
             sys.exit(1)
 
+    def prepare_app(self, app_name):
+        if app_name.lower() == 'browser':
+            from gaiatest.apps.browser.app import Browser
+            browser = Browser(self.marionette)
+            browser.go_to_url('http://taskjs.org/')
+            tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
+            self.marionette.switch_to_frame(tab_frame)
+            MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.document.readyState;', new_sandbox=False) == 'complete')
+
     def scroll_app(self, app_name):
         touch_duration = float(200)
 
-        apps = gaiatest.GaiaApps(self.marionette)
         #wait up to 30secs for the elements we want to show up
         self.marionette.set_search_timeout(30000)
 
@@ -433,16 +446,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
             self.logger.debug('Scrolling through contacts')
             smooth_scroll(self.marionette, name, "y", -1, 5000, scroll_back=False)
         elif app_name.lower() == 'browser':
-            self.marionette.execute_script("return window.wrappedJSObject.Browser.navigate('http://taskjs.org/');", new_sandbox=False)
-            MarionetteWait(self.marionette, 30).until(lambda m: 'http://taskjs.org/' == m.execute_script('return window.wrappedJSObject.Browser.currentTab.url;', new_sandbox=False))
-            MarionetteWait(self.marionette, 30).until(lambda m: not m.execute_script('return window.wrappedJSObject.Browser.currentTab.loading;', new_sandbox=False))
-            # check when the tab's document is ready
-            tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
-            self.marionette.switch_to_frame(tab_frame)
-            MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.document.readyState;', new_sandbox=False) == 'complete')
-            # we have to fire smooth_scroll from the browser app, so let's go back
-            self.marionette.switch_to_frame()
-            apps.launch(app_name)  # since the app is launched, launch will switch us back to the app frame without relaunching
             tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
             self.logger.debug('Scrolling through browser content')
             smooth_scroll(self.marionette, tab_dom, "y", -1, 5000, scroll_back=True)
