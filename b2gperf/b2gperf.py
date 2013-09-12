@@ -462,11 +462,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
             emails = self.marionette.find_elements("class name", "msg-header-author")
             self.logger.debug('Scrolling through emails')
             smooth_scroll(self.marionette, emails[0], "y", -1, 2000, scroll_back=True)
-        else:
-            message = 'Unsupported app for scrollfps tests: %s' % app_name
-            self.logger.exception(message)
-            raise Exception(message)
-
 
 class B2GPerfFormatter(mozlog.MozFormatter):
 
