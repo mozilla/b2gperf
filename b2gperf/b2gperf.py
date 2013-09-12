@@ -28,7 +28,7 @@ from marionette.gestures import smooth_scroll
 from wait import MarionetteWait
 
 TEST_TYPES = ['startup', 'scrollfps']
-
+SCROLLFPS_APP_NAMES = ['browser', 'contacts', 'email', 'homescreen']
 
 class DatazillaPerfPoster(object):
 
@@ -161,6 +161,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
             self.logger.info('Running startup tests')
             self.test_startup()
         elif test_type == 'scrollfps':
+            for app_name in self.app_names:
+                if app_name.lower() not in SCROLLFPS_APP_NAMES:
+                    self.logger.error("%s is not a valid scrollfps test app name. Please select one of %s" % (app_name, SCROLLFPS_APP_NAMES))
+                    sys.exit(1)
             self.logger.info('Running FPS tests')
             self.test_scrollfps()
         else:
