@@ -14,6 +14,7 @@ import traceback
 from urlparse import urlparse
 import xml.dom.minidom
 import zipfile
+import numpy
 
 import mozlog
 from progressbar import Counter
@@ -263,8 +264,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
                     self.post_to_datazilla(results, app_name)
                 else:
                     for key, values in results.iteritems():
-                        result_summary = 'avg:%s, max:%s, min:%s, all:%s' % (
-                            sum(values) / len(values),
+                        result_summary = 'median:%s, mean:%s, std: %s, max:%s, min:%s, all:%s' % (
+                            int(numpy.median(values)),
+                            int(numpy.mean(values)),
+                            int(numpy.std(values)),
                             max(values),
                             min(values),
                             ','.join(str(x) for x in values))
@@ -395,8 +398,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
                     self.post_to_datazilla(results, app_name)
                 else:
                     for key, values in results.iteritems():
-                        result_summary = 'avg:%s, max:%s, min:%s, all:%s' % (
-                            sum(values) / len(values),
+                        result_summary = 'median:%s, mean:%s, std: %s, max:%s, min:%s, all:%s' % (
+                            int(numpy.median(values)),
+                            int(numpy.mean(values)),
+                            int(numpy.std(values)),
                             max(values),
                             min(values),
                             ','.join(str(x) for x in values))
