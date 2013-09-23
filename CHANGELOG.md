@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.8
+* Remove case sensitivity from scroll fps tests
+* Fail early if the app does not support scroll fps tests
+* Add median to displayed results
+
 ## 0.7
 * Added console level logging and debugging
 
