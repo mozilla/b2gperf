@@ -18,7 +18,8 @@ except (OSError, IOError):
 deps = ['datazilla>=1.2',
         'gaiatest==0.12',
         'mozlog==1.3',
-        'progressbar==2.3']
+        'progressbar==2.3',
+        'numpy==1.7.1']
 
 setup(name='b2gperf',
       version=version,
