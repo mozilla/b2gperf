@@ -31,7 +31,7 @@ from marionette.gestures import smooth_scroll
 from wait import MarionetteWait
 
 TEST_TYPES = ['startup', 'scrollfps']
-SCROLLFPS_APP_NAMES = ['browser', 'contacts', 'email', 'homescreen', 'settings']
+SCROLLFPS_APP_NAMES = ['browser', 'contacts', 'email', 'gallery', 'homescreen', 'settings']
 
 
 class DatazillaPerfPoster(object):
@@ -456,6 +456,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
             tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
             self.marionette.switch_to_frame(tab_frame)
             MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.document.readyState;', new_sandbox=False) == 'complete')
+        elif app_name.lower() == 'gallery':
+            MarionetteWait(self.marionette, 30).until(lambda m: m.find_element(By.ID, 'progress').is_displayed())
+            MarionetteWait(self.marionette, 240).until_not(lambda m: m.find_element(By.ID, 'progress').is_displayed())
 
     def scroll_app(self, app_name):
         touch_duration = float(200)
