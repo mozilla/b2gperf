@@ -318,6 +318,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
             self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
 
+            self.logger.debug('Switch off keyboard FTU screen')
+            data_layer.set_setting('keyboard.ftu.enabled', False)
+
             self.logger.debug('Enabling FPS debug')
             data_layer.set_setting('debug.fps.enabled', True)
 
