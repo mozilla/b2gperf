@@ -25,12 +25,13 @@ import dzclient
 import gaiatest
 from marionette import Actions
 from marionette import Marionette
+from marionette.by import By
 from marionette.gestures import smooth_scroll
 
 from wait import MarionetteWait
 
 TEST_TYPES = ['startup', 'scrollfps']
-SCROLLFPS_APP_NAMES = ['browser', 'contacts', 'email', 'homescreen']
+SCROLLFPS_APP_NAMES = ['browser', 'contacts', 'email', 'homescreen', 'settings']
 
 
 class DatazillaPerfPoster(object):
@@ -498,6 +499,22 @@ class B2GPerfRunner(DatazillaPerfPoster):
             emails = self.marionette.find_elements("class name", "msg-header-author")
             self.logger.debug('Scrolling through emails')
             smooth_scroll(self.marionette, emails[0], "y", -1, 2000, scroll_back=True)
+        elif app_name.lower() == 'settings':
+            start = self.marionette.find_element(By.CSS_SELECTOR, '#root .menu-item')
+            distance = self.marionette.execute_script(
+                'return arguments[0].scrollHeight',
+                script_args=[self.marionette.find_element(By.CSS_SELECTOR, '#root > div')])
+            self.logger.debug('Scrolling through settings')
+            smooth_scroll(self.marionette, start, 'y', -1, distance,
+                          increments=20, scroll_back=True)
+        elif app_name.lower() == 'gallery':
+            start = self.marionette.find_element(By.CSS_SELECTOR, '.thumbnail')
+            distance = self.marionette.execute_script(
+                'return arguments[0].scrollHeight',
+                script_args=[self.marionette.find_element(By.ID, 'thumbnails')])
+            self.logger.debug('Scrolling through gallery thumbnails')
+            smooth_scroll(self.marionette, start, 'y', -1, distance,
+                          increments=20, scroll_back=True)
 
 
 class B2GPerfFormatter(mozlog.MozFormatter):
