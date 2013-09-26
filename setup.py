@@ -16,7 +16,7 @@ except (OSError, IOError):
 
 # dependencies
 deps = ['datazilla>=1.2',
-        'gaiatest==0.12',
+        'gaiatest==0.15',
         'mozlog==1.3',
         'progressbar==2.3',
         'numpy==1.7.1']
