@@ -31,6 +31,7 @@ from wait import MarionetteWait
 TEST_TYPES = ['startup', 'scrollfps']
 SCROLLFPS_APP_NAMES = ['browser', 'contacts', 'email', 'homescreen']
 
+
 class DatazillaPerfPoster(object):
 
     def __init__(self, marionette, datazilla_config=None, sources=None, log_level='INFO'):
@@ -467,6 +468,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             emails = self.marionette.find_elements("class name", "msg-header-author")
             self.logger.debug('Scrolling through emails')
             smooth_scroll(self.marionette, emails[0], "y", -1, 2000, scroll_back=True)
+
 
 class B2GPerfFormatter(mozlog.MozFormatter):
 
