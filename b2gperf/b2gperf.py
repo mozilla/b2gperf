@@ -50,6 +50,7 @@ class DatazillaPerfPoster(object):
         self.ancillary_data = {}
         self.device = gaiatest.GaiaDevice(self.marionette)
 
+        device_name = 'unknown'
         if self.device.is_android_build:
             # get gaia, gecko and build revisions
             try:
@@ -63,7 +64,6 @@ class DatazillaPerfPoster(object):
                 # the device, so we fall back to the sources file
                 pass
 
-            device_name = 'unknown'
             build_prop = self.device.manager.pullFile('/system/build.prop')
             device_prefix = 'ro.product.device='
             for line in build_prop.split('\n'):
