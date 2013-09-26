@@ -8,6 +8,7 @@ from optparse import OptionParser
 from StringIO import StringIO
 import os
 import pkg_resources
+import re
 import sys
 import time
 import traceback
@@ -317,6 +318,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
             self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
 
+            self.logger.debug('Enabling FPS debug')
+            data_layer.set_setting('debug.fps.enabled', True)
+
             try:
                 results = {}
                 success_counter = 0
@@ -360,12 +364,32 @@ class B2GPerfRunner(DatazillaPerfPoster):
                             self.marionette.set_script_timeout(60000)
                             self.marionette.switch_to_frame(app.frame)
                             self.marionette.execute_script('window.addEventListener("touchend", function() { window.wrappedJSObject.touchend = true; }, false);', new_sandbox=False)
+
+                            if self.device.is_android_build:
+                                self.logger.debug('Clearing logcat')
+                                self.device.manager.recordLogcat()
+
                             self.scroll_app(app_name)
                             MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.wrappedJSObject.touchend;', new_sandbox=False))
+
+                            if self.device.is_android_build:
+                                self.logger.debug('Getting logcat')
+                                logcat = self.device.manager.getLogcat(['Gecko:I', '*:S'], 'brief')
+
                             self.marionette.switch_to_frame()
                             self.logger.debug('Stop measuring FPS')
                             fps = self.marionette.execute_script('return window.wrappedJSObject.fps.stop_fps();')
-                            for metric in ['fps']:
+
+                            metrics = ['fps']
+
+                            if logcat:
+                                hwc_fps_regex = re.compile('HWComposer: FPS is ([\d\.]+)')
+                                values = [float(hwc_fps_regex.search(line).group(1)) for line in logcat if hwc_fps_regex.search(line)]
+                                if len(values) > 0:
+                                    metrics.append('fps_hwc')
+                                    fps['fps_hwc'] = numpy.median(values)
+
+                            for metric in metrics:
                                 if fps.get(metric):
                                     value = fps.get(metric)
                                     self.logger.debug("Metric '%s' returned: %s" % (metric, value))
@@ -393,6 +417,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                 pass
                             progress.update(success_counter)
                 progress.finish()
+
+                self.logger.debug('Disabling FPS debug')
+                data_layer.set_setting('debug.fps.enabled', False)
 
                 if self.submit_report:
                     self.logger.debug('Submitting report')
