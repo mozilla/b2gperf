@@ -187,22 +187,22 @@ class B2GPerfRunner(DatazillaPerfPoster):
             apps = gaiatest.GaiaApps(self.marionette)
             data_layer = gaiatest.GaiaData(self.marionette)
 
-            safe_volume = 5
-            self.logger.debug('Setting content volume to %d' % safe_volume)
-            data_layer.set_setting('audio.volume.content', safe_volume)
-
-            self.logger.debug('Unlocking device')
-            gaiatest.LockScreen(self.marionette).unlock()
-
-            self.logger.debug('Killing all running apps')
-            apps.kill_all()
-
-            self.logger.debug('Returning to home screen')
-            self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
-
-            self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
-
             try:
+                safe_volume = 5
+                self.logger.debug('Setting content volume to %d' % safe_volume)
+                data_layer.set_setting('audio.volume.content', safe_volume)
+
+                self.logger.debug('Unlocking device')
+                gaiatest.LockScreen(self.marionette).unlock()
+
+                self.logger.debug('Killing all running apps')
+                apps.kill_all()
+
+                self.logger.debug('Returning to home screen')
+                self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
+
+                self.marionette.import_script(pkg_resources.resource_filename(__name__, 'launchapp.js'))
+
                 results = {}
                 success_counter = 0
                 fail_counter = 0
@@ -298,24 +298,24 @@ class B2GPerfRunner(DatazillaPerfPoster):
             apps = gaiatest.GaiaApps(self.marionette)
             data_layer = gaiatest.GaiaData(self.marionette)
 
-            self.logger.debug('Unlocking device')
-            gaiatest.LockScreen(self.marionette).unlock()
-
-            self.logger.debug('Killing all running apps')
-            apps.kill_all()
-
-            self.logger.debug('Returning to home screen')
-            self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
-
-            self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
-
-            self.logger.debug('Switch off keyboard FTU screen')
-            data_layer.set_setting('keyboard.ftu.enabled', False)
-
-            self.logger.debug('Enabling FPS debug')
-            data_layer.set_setting('debug.fps.enabled', True)
-
             try:
+                self.logger.debug('Unlocking device')
+                gaiatest.LockScreen(self.marionette).unlock()
+
+                self.logger.debug('Killing all running apps')
+                apps.kill_all()
+
+                self.logger.debug('Returning to home screen')
+                self.marionette.execute_script('window.wrappedJSObject.dispatchEvent(new Event("home"));')
+
+                self.marionette.import_script(pkg_resources.resource_filename(__name__, 'scrollapp.js'))
+
+                self.logger.debug('Switch off keyboard FTU screen')
+                data_layer.set_setting('keyboard.ftu.enabled', False)
+
+                self.logger.debug('Enabling FPS debug')
+                data_layer.set_setting('debug.fps.enabled', True)
+
                 results = {}
                 success_counter = 0
                 fail_counter = 0
