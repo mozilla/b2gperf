@@ -52,7 +52,6 @@ class DatazillaPerfPoster(object):
         self.ancillary_data = {}
         self.device = gaiatest.GaiaDevice(self.marionette)
 
-        device_name = 'unknown'
         if self.device.is_android_build:
             # get gaia, gecko and build revisions
             try:
@@ -64,13 +63,6 @@ class DatazillaPerfPoster(object):
                 # the zip file will not exist if Gaia has not been flashed to
                 # the device, so we fall back to the sources file
                 pass
-
-            build_prop = self.device.manager.pullFile('/system/build.prop')
-            device_prefix = 'ro.product.device='
-            for line in build_prop.split('\n'):
-                if line.startswith(device_prefix):
-                    device_name = line[len(device_prefix):]
-                    self.logger.debug('Device name: %s' % device_name)
 
             try:
                 sources_xml = sources and xml.dom.minidom.parse(sources) or xml.dom.minidom.parseString(self.device.manager.catFile('system/sources.xml'))
@@ -95,7 +87,7 @@ class DatazillaPerfPoster(object):
             'oauth key': datazilla_config['oauth_key'],
             'oauth secret': datazilla_config['oauth_secret'],
             'machine name': mac_address or 'unknown',
-            'device name': device_name,
+            'device name': datazilla_config['device_name'],
             'os version': settings.get('deviceinfo.os'),
             'id': settings.get('deviceinfo.platform_build_id')}
 
@@ -587,6 +579,11 @@ class dzOptionParser(OptionParser):
                         dest='datazilla_branch',
                         metavar='str',
                         help='datazilla branch name')
+        self.add_option('--dz-device',
+                        action='store',
+                        dest='datazilla_device_name',
+                        metavar='str',
+                        help='datazilla device name')
         self.add_option('--dz-key',
                         action='store',
                         dest='datazilla_key',
@@ -614,6 +611,7 @@ class dzOptionParser(OptionParser):
             'host': datazilla_url.hostname,
             'project': options.datazilla_project,
             'branch': options.datazilla_branch,
+            'device_name': options.datazilla_device_name,
             'oauth_key': options.datazilla_key,
             'oauth_secret': options.datazilla_secret}
         return datazilla_config
