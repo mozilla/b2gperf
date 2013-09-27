@@ -453,8 +453,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             from gaiatest.apps.browser.app import Browser
             browser = Browser(self.marionette)
             browser.go_to_url('http://taskjs.org/')
-            tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
-            self.marionette.switch_to_frame(tab_frame)
+            browser.switch_to_content()
             MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.document.readyState;', new_sandbox=False) == 'complete')
         elif app_name.lower() == 'contacts':
             MarionetteWait(self.marionette, 240).until(lambda m: m.find_element(By.CSS_SELECTOR, '.contact-item p > strong').is_displayed())
@@ -495,9 +494,10 @@ class B2GPerfRunner(DatazillaPerfPoster):
             smooth_scroll(self.marionette, start, 'y', -1, distance,
                           increments=20, scroll_back=True)
         elif app_name.lower() == 'browser':
-            tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
+            start = self.marionette.execute_script('return window.wrappedJSObject.Browser.currentTab.dom;', new_sandbox=False)
             self.logger.debug('Scrolling through browser content')
-            smooth_scroll(self.marionette, tab_dom, "y", -1, 5000, scroll_back=True)
+            smooth_scroll(self.marionette, start, 'y', -1, 2000,
+                          increments=20, scroll_back=True)
         elif app_name.lower() == 'email':
             email = self.marionette.find_element("class name", "msg-header-author")
             MarionetteWait(self.marionette, 30).until(lambda m: email.is_displayed() or not email.get_attribute('hidden'))
