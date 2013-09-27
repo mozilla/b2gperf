@@ -31,7 +31,7 @@ from marionette.gestures import smooth_scroll
 from wait import MarionetteWait
 
 TEST_TYPES = ['startup', 'scrollfps']
-SCROLLFPS_APP_NAMES = ['browser', 'contacts', 'email', 'gallery', 'homescreen', 'messages', 'settings']
+SCROLLFPS_APP_NAMES = ['browser', 'contacts', 'email', 'gallery', 'homescreen', 'messages', 'music', 'settings']
 
 
 class DatazillaPerfPoster(object):
@@ -462,6 +462,9 @@ class B2GPerfRunner(DatazillaPerfPoster):
             MarionetteWait(self.marionette, 240).until_not(lambda m: m.find_element(By.ID, 'progress').is_displayed())
         elif app_name.lower() == 'messages':
             MarionetteWait(self.marionette, 240).until(lambda m: m.find_element(By.CSS_SELECTOR, '#threads-container li').is_displayed())
+        elif app_name.lower() == 'music':
+            # TODO Need to wait for initial loading of music to finish
+            MarionetteWait(self.marionette, 60).until(lambda m: m.find_element(By.CSS_SELECTOR, '#views-tiles .tile').is_displayed())
 
     def scroll_app(self, app_name):
         touch_duration = float(200)
@@ -531,6 +534,14 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 'return arguments[0].scrollHeight',
                 script_args=[self.marionette.find_element(By.ID, 'threads-container')])
             self.logger.debug('Scrolling through messages')
+            smooth_scroll(self.marionette, start, 'y', -1, distance,
+                          increments=20, scroll_back=True)
+        elif app_name.lower() == 'music':
+            start = self.marionette.find_element(By.CSS_SELECTOR, '#views-tiles .tile')
+            distance = self.marionette.execute_script(
+                'return arguments[0].scrollHeight',
+                script_args=[self.marionette.find_element(By.ID, 'views-tiles')])
+            self.logger.debug('Scrolling through music albums')
             smooth_scroll(self.marionette, start, 'y', -1, distance,
                           increments=20, scroll_back=True)
 
