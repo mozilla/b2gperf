@@ -47,7 +47,6 @@ class DatazillaPerfPoster(object):
 
         settings = gaiatest.GaiaData(self.marionette).all_settings  # get all settings
         mac_address = self.marionette.execute_script('return navigator.mozWifiManager && navigator.mozWifiManager.macAddress;')
-        self.logger.debug('Device MAC address: %s' % mac_address or 'Unknown')
 
         self.submit_report = True
         self.ancillary_data = {}
@@ -60,7 +59,6 @@ class DatazillaPerfPoster(object):
                 app_zip = self.device.manager.pullFile('/data/local/webapps/settings.gaiamobile.org/application.zip')
                 with zipfile.ZipFile(StringIO(app_zip)).open('resources/gaia_commit.txt') as f:
                     gaia_revision = f.read().splitlines()[0]
-                    self.logger.debug('Gaia revision: %s' % gaia_revision)
                     self.ancillary_data['gaia_revision'] = gaia_revision
             except zipfile.BadZipfile:
                 # the zip file will not exist if Gaia has not been flashed to
@@ -80,10 +78,8 @@ class DatazillaPerfPoster(object):
                     path = element.getAttribute('path')
                     revision = element.getAttribute('revision')
                     if not self.ancillary_data.get('gaia_revision') and path in 'gaia':
-                        self.logger.debug('Gaia revision: %s' % revision)
                         self.ancillary_data['gaia_revision'] = revision
                     if path in ['gecko', 'build']:
-                        self.logger.debug('%s revision: %s' % (path.capitalize(), revision))
                         self.ancillary_data['_'.join([path, 'revision'])] = revision
             except:
                 pass
@@ -104,6 +100,8 @@ class DatazillaPerfPoster(object):
             'id': settings.get('deviceinfo.platform_build_id')}
 
         for key, value in self.required.items():
+            if value:
+                self.logger.debug('DataZilla field: %s (%s)' % (key, value))
             if not value:
                 self.submit_report = False
                 self.logger.warn('Missing required DataZilla field: %s' % key)
