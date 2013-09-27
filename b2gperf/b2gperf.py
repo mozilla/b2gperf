@@ -380,6 +380,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                 hwc_fps_regex = re.compile('HWComposer: FPS is ([\d\.]+)')
                                 values = [float(hwc_fps_regex.search(line).group(1)) for line in logcat if hwc_fps_regex.search(line)]
                                 if len(values) > 0:
+                                    self.logger.debug('HWComposer FPS values: %s' % ','.join(map(str, values)))
                                     metrics.append('fps_hwc')
                                     fps['fps_hwc'] = numpy.median(values)
 
