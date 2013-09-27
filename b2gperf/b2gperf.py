@@ -477,22 +477,24 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
         if app_name.lower() == 'homescreen':
             action = Actions(self.marionette)
-            landing_page = self.marionette.find_element('id', 'landing-page')
-            self.logger.debug('Swiping to first page of apps')
-            action.flick(
-                landing_page,
-                landing_page.size['width'] / 100 * 90,
-                landing_page.size['width'] / 2,
-                landing_page.size['width'] / 100 * 10,
-                landing_page.size['width'] / 2, touch_duration).perform()
-            first_page = self.marionette.find_elements('css selector', '.page')[0]
-            self.logger.debug('Swiping back to home screen')
-            action.flick(
-                first_page,
-                first_page.size['width'] / 100 * 10,
-                first_page.size['width'] / 2,
-                first_page.size['width'] / 100 * 90,
-                first_page.size['width'] / 2, touch_duration).perform()
+            for page in self.marionette.find_elements(By.CSS_SELECTOR, '#icongrid .page')[:-1]:
+                self.logger.debug('Swiping to next page of apps')
+                action.flick(
+                    page,
+                    page.size['width'] / 100 * 90,
+                    page.size['width'] / 2,
+                    page.size['width'] / 100 * 10,
+                    page.size['width'] / 2, touch_duration).perform()
+                MarionetteWait(self.marionette, 30).until_not(lambda m: page.is_displayed())
+            for page in reversed(self.marionette.find_elements(By.CSS_SELECTOR, '#icongrid .page')[1:]):
+                MarionetteWait(self.marionette, 30).until(lambda m: page.is_displayed())
+                self.logger.debug('Swiping back to previous page of apps')
+                action.flick(
+                    page,
+                    page.size['width'] / 100 * 10,
+                    page.size['width'] / 2,
+                    page.size['width'] / 100 * 90,
+                    page.size['width'] / 2, touch_duration).perform()
         elif app_name.lower() == 'contacts':
             start = self.marionette.find_element(By.CSS_SELECTOR, '.contact-item p > strong')
             distance = self.marionette.execute_script(
