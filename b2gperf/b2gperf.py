@@ -456,6 +456,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
             tab_frame = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;")
             self.marionette.switch_to_frame(tab_frame)
             MarionetteWait(self.marionette, 30).until(lambda m: m.execute_script('return window.document.readyState;', new_sandbox=False) == 'complete')
+        elif app_name.lower() == 'contacts':
+            MarionetteWait(self.marionette, 240).until(lambda m: m.find_element(By.CSS_SELECTOR, '.contact-item p > strong').is_displayed())
         elif app_name.lower() == 'gallery':
             MarionetteWait(self.marionette, 30).until(lambda m: m.find_element(By.ID, 'progress').is_displayed())
             MarionetteWait(self.marionette, 240).until_not(lambda m: m.find_element(By.ID, 'progress').is_displayed())
@@ -485,10 +487,13 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 first_page.size['width'] / 100 * 90,
                 first_page.size['width'] / 2, touch_duration).perform()
         elif app_name.lower() == 'contacts':
-            name = self.marionette.find_element("css selector", ".contact-item p > strong")
-            MarionetteWait(self.marionette, 30).until(lambda m: name.is_displayed())
+            start = self.marionette.find_element(By.CSS_SELECTOR, '.contact-item p > strong')
+            distance = self.marionette.execute_script(
+                'return arguments[0].scrollHeight',
+                script_args=[self.marionette.find_element(By.ID, 'groups-container')])
             self.logger.debug('Scrolling through contacts')
-            smooth_scroll(self.marionette, name, "y", -1, 5000, scroll_back=False)
+            smooth_scroll(self.marionette, start, 'y', -1, distance,
+                          increments=20, scroll_back=True)
         elif app_name.lower() == 'browser':
             tab_dom = self.marionette.execute_script("return window.wrappedJSObject.Browser.currentTab.dom;", new_sandbox=False)
             self.logger.debug('Scrolling through browser content')
