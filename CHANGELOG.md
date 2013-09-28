@@ -1,5 +1,21 @@
 # Change Log
 
+## 0.9
+* Output HWComposer FPS values to debug log
+* Move cleanup within error threshold measurements
+* Require device name to be provided on the command line
+* Improve debug logging for DataZilla fields
+* Fix homescreen scroll fps test and scroll through all pages of apps
+* Add video scroll fps test
+* Add music scroll fps test
+* Add messages scroll fps test
+* Improved scrolling in browser app
+* Improved scrolling in contacts app
+* Add gallery scroll fps test
+* Add settings scroll fps test
+* Disable the keyboard FTU screen
+* Add support for gathering FPS measurements from the HWComposer logs
+
 ## 0.8
 * Remove case sensitivity from scroll fps tests
 * Fail early if the app does not support scroll fps tests
