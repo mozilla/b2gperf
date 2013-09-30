@@ -16,6 +16,8 @@ import xml.dom.minidom
 import zipfile
 import sys
 
+from b2gpopulate import B2GPopulate
+from b2gpopulate import B2GPopulateError
 import dzclient
 import gaiatest
 from marionette import Actions
@@ -195,12 +197,23 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.ancillary_data['settle_time'] = self.settle_time
 
     def measure_app_perf(self, app_names):
+        b2gpopulate = B2GPopulate(self.marionette)
+        caught_exception = False
         self.marionette.set_script_timeout(60000)
         self.marionette.set_search_timeout(60000)
 
         for app_name in app_names:
             if self.test_type == 'startup':
-                test_class = B2GPerfLaunchTest
+                tests = {
+                    'contacts': B2GPerfLaunchContactsTest,
+                    'gallery': B2GPerfLaunchGalleryTest,
+                    'messages': B2GPerfLaunchMessagesTest,
+                    'music': B2GPerfLaunchMusicTest,
+                    'video': B2GPerfLaunchVideoTest}
+                if app_name.lower() in tests.keys():
+                    test_class = tests[app_name.lower()]
+                else:
+                    test_class = B2GPerfLaunchTest
             elif self.test_type == 'scrollfps':
                 tests = {
                     'browser': B2GPerfScrollBrowserTest,
@@ -225,7 +238,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
             test = test_class(self.marionette, app_name, self.logger,
                               self.iterations, self.delay, self.device,
-                              self.restart, self.settle_time, self.testvars)
+                              self.restart, self.settle_time, self.testvars,
+                              b2gpopulate)
             try:
                 test.run()
 
@@ -242,8 +256,11 @@ class B2GPerfRunner(DatazillaPerfPoster):
                                             ','.join(str(x) for x in values))
                     self.logger.info('Results for %s, %s: %s' % (
                         app_name, key, result_summary))
-            except (B2GPerfError, MarionetteException):
+            except (B2GPerfError, B2GPopulateError, MarionetteException):
+                caught_exception = True
                 traceback.print_exc()
+            if caught_exception:
+                sys.exit(1)
 
 
 class B2GPerfFormatter(mozlog.MozFormatter):
@@ -254,14 +271,15 @@ class B2GPerfFormatter(mozlog.MozFormatter):
         record.timestamp = datetime.datetime.fromtimestamp(
             int(record.created)).strftime('%Y-%m-%d %H:%M:%S')
         sep = ' | '
-        fmt = sep.join(['%(timestamp)s', '%(levelname)s', '%(message)s'])
+        fmt = sep.join(['%(timestamp)s', '%(name)s', '%(levelname)s',
+                        '%(message)s'])
         return fmt % record.__dict__
 
 
 class B2GPerfTest(object):
 
     def __init__(self, marionette, app_name, logger, iterations, delay,
-                 device, restart, settle_time, testvars):
+                 device, restart, settle_time, testvars, b2gpopulate):
         self.marionette = marionette
         self.app_name = app_name
         self.logger = logger
@@ -272,6 +290,7 @@ class B2GPerfTest(object):
         self.settle_time = settle_time
         self.testvars = testvars
         self.requires_connection = False
+        self.b2gpopulate = b2gpopulate
 
     def connect_to_network(self):
         while not self.device.is_online:
@@ -285,15 +304,32 @@ class B2GPerfTest(object):
                 raise NetworkConnectionError()
         self.logger.debug('Connected to network')
 
+    def populate_databases(self):
+        self.logger.debug('No databases to populate')
+
+    def populate_files(self):
+        self.logger.debug('No files to populate')
+
     def setup(self):
         if self.restart:
-            self.logger.debug('Restarting B2G')
-            self.device.restart_b2g()
-        self.logger.debug('Settling for %d seconds' % self.settle_time)
-        time.sleep(self.settle_time)
+            self.logger.debug('Stopping B2G')
+            self.device.stop_b2g()
+
+        self.logger.debug('Populating databases')
+        self.populate_databases()
+
+        if self.restart:
+            self.logger.debug('Starting B2G')
+            self.device.start_b2g()
 
         self.apps = gaiatest.GaiaApps(self.marionette)
         self.data_layer = gaiatest.GaiaData(self.marionette)
+
+        self.logger.debug('Populating files')
+        self.populate_files()
+
+        self.logger.debug('Settling for %d seconds' % self.settle_time)
+        time.sleep(self.settle_time)
 
         self.marionette.switch_to_frame()
 
@@ -372,6 +408,36 @@ class B2GPerfLaunchTest(B2GPerfTest):
             raise AppLaunchError()
         self.logger.debug("Killing '%s'" % self.app_name)
         self.apps.kill(gaiatest.GaiaApp(origin=self.result.get('origin')))
+
+
+class B2GPerfLaunchContactsTest(B2GPerfLaunchTest):
+
+    def populate_databases(self):
+        self.b2gpopulate.populate_contacts(200, restart=False)
+
+
+class B2GPerfLaunchGalleryTest(B2GPerfLaunchTest):
+
+    def populate_files(self):
+        self.b2gpopulate.populate_pictures(700)
+
+
+class B2GPerfLaunchMessagesTest(B2GPerfLaunchTest):
+
+    def populate_databases(self):
+        self.b2gpopulate.populate_messages(200, restart=False)
+
+
+class B2GPerfLaunchMusicTest(B2GPerfLaunchTest):
+
+    def populate_files(self):
+        self.b2gpopulate.populate_music(500)
+
+
+class B2GPerfLaunchVideoTest(B2GPerfLaunchTest):
+
+    def populate_files(self):
+        self.b2gpopulate.populate_videos(100)
 
 
 class B2GPerfScrollTest(B2GPerfTest):
@@ -467,10 +533,10 @@ class B2GPerfScrollBrowserTest(B2GPerfScrollTest):
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
         from gaiatest.apps.browser.app import Browser
-        browser = Browser(self.marionette)
-        browser.go_to_url('http://taskjs.org/')
+        app = Browser(self.marionette)
+        app.go_to_url('http://taskjs.org/')
         # TODO Move readyState wait into app object
-        browser.switch_to_content()
+        app.switch_to_content()
         MarionetteWait(self.marionette, 30).until(
             lambda m: m.execute_script(
                 'return window.document.readyState;',
@@ -487,16 +553,24 @@ class B2GPerfScrollBrowserTest(B2GPerfScrollTest):
 
 class B2GPerfScrollContactsTest(B2GPerfScrollTest):
 
+    def __init__(self, *args, **kwargs):
+        B2GPerfScrollTest.__init__(self, *args, **kwargs)
+        from gaiatest.apps.contacts.app import Contacts
+        self.contacts = Contacts(self.marionette)
+        self.contact_count = 200
+
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
-        # TODO Use app object
+        self.logger.debug('Waiting for contacts to be displayed')
         MarionetteWait(self.marionette, 240).until(
             lambda m: m.find_element(
-                By.CSS_SELECTOR, '.contact-item p > strong').is_displayed())
+                *self.contacts._contact_locator).is_displayed())
+
+    def populate_databases(self):
+        self.b2gpopulate.populate_contacts(self.contact_count, restart=False)
 
     def scroll(self):
-        start = self.marionette.find_element(By.CSS_SELECTOR,
-                                             '.contact-item p > strong')
+        start = self.marionette.find_element(*self.contacts._contact_locator)
         distance = self.marionette.execute_script(
             'return arguments[0].scrollHeight',
             script_args=[self.marionette.find_element(By.ID,
@@ -510,12 +584,12 @@ class B2GPerfScrollEmailTest(B2GPerfScrollTest):
 
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
+        self.logger.debug('Waiting for emails to be displayed')
         MarionetteWait(self.marionette, 30).until(
             lambda m: m.find_element(
                 By.CLASS_NAME, 'msg-header-author').is_displayed())
 
     def scroll(self):
-        # TODO Use app object
         # TODO Needs updating/fixing once we can pre-populate emails
         emails = self.marionette.find_elements(
             By.CLASS_NAME, 'msg-header-author')
@@ -532,16 +606,32 @@ class B2GPerfScrollEmailTest(B2GPerfScrollTest):
 
 class B2GPerfScrollGalleryTest(B2GPerfScrollTest):
 
+    def __init__(self, *args, **kwargs):
+        B2GPerfScrollTest.__init__(self, *args, **kwargs)
+        from gaiatest.apps.gallery.app import Gallery
+        self.gallery = Gallery(self.marionette)
+        self.picture_count = 50
+
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
-        # TODO Use app object
-        MarionetteWait(self.marionette, 30).until(
-            lambda m: m.find_element(By.ID, 'progress').is_displayed())
-        MarionetteWait(self.marionette, 240).until_not(
-            lambda m: m.find_element(By.ID, 'progress').is_displayed())
+        # TODO Replace with a suitable wait
+        self.logger.debug('Sleep for 5 seconds to allow scan to start')
+        time.sleep(5)
+        self.logger.debug('Waiting for correct number of pictures')
+        MarionetteWait(self.marionette, 240).until(
+            lambda m: len(m.find_elements(
+                *self.gallery._gallery_items_locator)) == self.picture_count)
+        self.logger.debug('Waiting for progress bar to be hidden')
+        MarionetteWait(self.marionette, 60).until_not(
+            lambda m: m.find_element(
+                *self.gallery._progress_bar_locator).is_displayed())
+
+    def populate_files(self):
+        self.b2gpopulate.populate_pictures(self.picture_count)
 
     def scroll(self):
-        start = self.marionette.find_element(By.CSS_SELECTOR, '.thumbnail')
+        start = self.marionette.find_element(
+            *self.gallery._gallery_items_locator)
         distance = self.marionette.execute_script(
             'return arguments[0].scrollHeight',
             script_args=[self.marionette.find_element(By.ID, 'thumbnails')])
@@ -552,13 +642,17 @@ class B2GPerfScrollGalleryTest(B2GPerfScrollTest):
 
 class B2GPerfScrollHomescreenTest(B2GPerfScrollTest):
 
+    def __init__(self, *args, **kwargs):
+        B2GPerfScrollTest.__init__(self, *args, **kwargs)
+        from gaiatest.apps.homescreen.app import Homescreen
+        self.homescreen = Homescreen(self.marionette)
+
     def after_scroll(self):
         pass
 
     def before_scroll(self):
-        # TODO Use app object
         self.app = gaiatest.GaiaApp(frame=self.marionette.find_element(
-            By.CSS_SELECTOR, 'div.homescreen iframe'))
+            *self.homescreen._homescreen_iframe_locator))
         self.marionette.switch_to_frame(self.app.frame)
 
     def scroll(self):
@@ -591,10 +685,13 @@ class B2GPerfScrollMessagesTest(B2GPerfScrollTest):
 
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
-        # TODO Use app object
+        self.logger.debug('Waiting for messages to be displayed')
         MarionetteWait(self.marionette, 240).until(
             lambda m: m.find_element(
                 By.CSS_SELECTOR, '#threads-container li').is_displayed())
+
+    def populate_databases(self):
+        self.b2gpopulate.populate_messages(200, restart=False)
 
     def scroll(self):
         start = self.marionette.find_element(
@@ -610,13 +707,28 @@ class B2GPerfScrollMessagesTest(B2GPerfScrollTest):
 
 class B2GPerfScrollMusicTest(B2GPerfScrollTest):
 
+    def __init__(self, *args, **kwargs):
+        B2GPerfScrollTest.__init__(self, *args, **kwargs)
+        self.music_count = 200
+        self.tracks_per_album = 10
+        self.album_count = self.music_count / self.tracks_per_album
+
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
-        # TODO Use app object
-        # TODO Need to wait for initial loading of music to finish
+        # TODO Replace with a suitable wait
+        self.logger.debug('Sleep for 5 seconds to allow scan to start')
+        time.sleep(5)
+        self.logger.debug('Waiting for correct number of albums')
         MarionetteWait(self.marionette, 60).until(
-            lambda m: m.find_element(
-                By.CSS_SELECTOR, '#views-tiles .tile').is_displayed())
+            lambda m: len(m.find_elements(
+                By.CSS_SELECTOR, '#views-tiles .tile')) == self.album_count)
+        self.logger.debug('Waiting for progress bar to be hidden')
+        MarionetteWait(self.marionette, 60).until_not(
+            lambda m: m.find_element(By.ID, 'scan-progress').is_displayed())
+
+    def populate_files(self):
+        self.b2gpopulate.populate_music(
+            self.music_count, tracks_per_album=self.tracks_per_album)
 
     def scroll(self):
         start = self.marionette.find_element(
@@ -632,7 +744,6 @@ class B2GPerfScrollMusicTest(B2GPerfScrollTest):
 class B2GPerfScrollSettingsTest(B2GPerfScrollTest):
 
     def scroll(self):
-        # TODO Use app object
         start = self.marionette.find_element(
             By.CSS_SELECTOR, '#root .menu-item')
         distance = self.marionette.execute_script(
@@ -646,17 +757,32 @@ class B2GPerfScrollSettingsTest(B2GPerfScrollTest):
 
 class B2GPerfScrollVideoTest(B2GPerfScrollTest):
 
+    def __init__(self, *args, **kwargs):
+        B2GPerfScrollTest.__init__(self, *args, **kwargs)
+        from gaiatest.apps.videoplayer.app import VideoPlayer
+        self.video = VideoPlayer(self.marionette)
+        self.video_count = 50
+
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
-        # TODO Use app object
-        # TODO Need to wait for initial loading of videos to finish
-        MarionetteWait(self.marionette, 60).until(
-            lambda m: m.find_element(
-                By.CSS_SELECTOR, '#thumbnails .thumbnail').is_displayed())
+        # TODO Replace with a suitable wait
+        self.logger.debug('Sleep for 5 seconds to allow scan to start')
+        time.sleep(5)
+        self.logger.debug('Waiting for correct number of videos')
+        MarionetteWait(self.marionette, 120).until(
+            lambda m: len(m.find_elements(
+                By.CSS_SELECTOR,
+                '#thumbnails .thumbnail')) == self.video_count)
+        self.logger.debug('Waiting for progress bar to be hidden')
+        MarionetteWait(self.marionette, 60).until_not(
+            lambda m: m.find_element(By.ID, 'throbber').is_displayed())
+
+    def populate_files(self):
+        self.b2gpopulate.populate_videos(self.video_count)
 
     def scroll(self):
         start = self.marionette.find_element(
-            By.CSS_SELECTOR, '.thumbnail')
+            By.CSS_SELECTOR, '#thumbnails .thumbnail')
         distance = self.marionette.execute_script(
             'return arguments[0].scrollHeight',
             script_args=[self.marionette.find_element(By.ID, 'thumbnails')])
