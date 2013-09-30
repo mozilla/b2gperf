@@ -718,12 +718,8 @@ class B2GPerfScrollMusicTest(B2GPerfScrollTest):
         # TODO Replace with a suitable wait
         self.logger.debug('Sleep for 5 seconds to allow scan to start')
         time.sleep(5)
-        self.logger.debug('Waiting for correct number of albums')
-        MarionetteWait(self.marionette, 60).until(
-            lambda m: len(m.find_elements(
-                By.CSS_SELECTOR, '#views-tiles .tile')) == self.album_count)
         self.logger.debug('Waiting for progress bar to be hidden')
-        MarionetteWait(self.marionette, 60).until_not(
+        MarionetteWait(self.marionette, 240).until_not(
             lambda m: m.find_element(By.ID, 'scan-progress').is_displayed())
 
     def populate_files(self):
