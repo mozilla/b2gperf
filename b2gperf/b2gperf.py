@@ -259,8 +259,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
             except (B2GPerfError, B2GPopulateError, MarionetteException):
                 caught_exception = True
                 traceback.print_exc()
-            if caught_exception:
-                sys.exit(1)
+        if caught_exception:
+            sys.exit(1)
 
 
 class B2GPerfFormatter(mozlog.MozFormatter):
