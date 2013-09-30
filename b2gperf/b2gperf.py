@@ -347,10 +347,6 @@ class B2GPerfTest(object):
         self.marionette.execute_script(
             'window.wrappedJSObject.dispatchEvent(new Event("home"));')
 
-        if self.requires_connection:
-            self.logger.debug('Connecting to network')
-            self.connect_to_network()
-
     def run(self):
         self.logger.info('Running %s' % self.__class__.__name__)
         self.setup()
@@ -362,6 +358,10 @@ class B2GPerfTest(object):
         for i in range(self.iterations + fail_threshold):
             while not success_counter == self.iterations:
                 try:
+                    if self.requires_connection:
+                        self.logger.debug('Connecting to network')
+                        self.connect_to_network()
+
                     self.logger.debug('Waiting for %d seconds' % self.delay)
                     time.sleep(self.delay)
                     self.test()
