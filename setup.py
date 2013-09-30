@@ -15,10 +15,10 @@ except (OSError, IOError):
     description = ''
 
 # dependencies
-deps = ['datazilla>=1.2',
+deps = ['b2gpopulate==0.10',
+        'datazilla>=1.2',
         'gaiatest==0.15',
         'mozlog==1.3',
-        'progressbar==2.3',
         'numpy==1.7.1']
 
 setup(name='b2gperf',
