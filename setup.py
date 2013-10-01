@@ -5,7 +5,7 @@
 import os
 from setuptools import setup, find_packages
 
-version = '0.9'
+version = '0.10'
 
 # get documentation from the README
 try:
