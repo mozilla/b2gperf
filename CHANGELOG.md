@@ -1,6 +1,11 @@
 # Change Log
 
-## 0.9
+## 0.10
+* Tests can now populate device content
+* Added custom launch tests
+* Refactored so scroll and launch tests can be more customised
+
+## 0.9 (unreleased)
 * Output HWComposer FPS values to debug log
 * Move cleanup within error threshold measurements
 * Require device name to be provided on the command line
