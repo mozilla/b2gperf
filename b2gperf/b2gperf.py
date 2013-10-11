@@ -337,6 +337,9 @@ class B2GPerfTest(object):
         self.logger.debug('Setting content volume to %d' % safe_volume)
         self.data_layer.set_setting('audio.volume.content', safe_volume)
 
+        self.logger.debug('Switching off keyboard first time use screen')
+        self.data_layer.set_setting('keyboard.ftu.enabled', False)
+
         self.logger.debug('Unlocking device')
         gaiatest.LockScreen(self.marionette).unlock()
 
