@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.11
+* Changed homescreen pages locator to work on both 1.2 and 1.3
+* Disable the keyboard first time use screen
+
 ## 0.10
 * Tests can now populate device content
 * Added custom launch tests
