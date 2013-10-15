@@ -661,7 +661,7 @@ class B2GPerfScrollHomescreenTest(B2GPerfScrollTest):
     def scroll(self):
         action = Actions(self.marionette)
         for page in self.marionette.find_elements(By.CSS_SELECTOR,
-                                                  '#icongrid .page')[:-1]:
+                                                  '#icongrid > div')[:-1]:
             self.logger.debug('Swiping to next page of apps')
             action.flick(
                 page,
@@ -672,7 +672,7 @@ class B2GPerfScrollHomescreenTest(B2GPerfScrollTest):
             MarionetteWait(self.marionette, 30).until_not(
                 lambda m: page.is_displayed())
         for page in reversed(self.marionette.find_elements(
-                By.CSS_SELECTOR, '#icongrid .page')[1:]):
+                By.CSS_SELECTOR, '#icongrid > div')[1:]):
             MarionetteWait(self.marionette, 30).until(
                 lambda m: page.is_displayed())
             self.logger.debug('Swiping to previous page of apps')
