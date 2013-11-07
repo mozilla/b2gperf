@@ -669,12 +669,14 @@ class B2GPerfScrollHomescreenTest(B2GPerfScrollTest):
                 page.size['width'] / 2,
                 page.size['width'] / 100 * 10,
                 page.size['width'] / 2, 200).perform()
-            MarionetteWait(self.marionette, 30).until_not(
-                lambda m: page.is_displayed())
+            MarionetteWait(self.marionette, 30).until(
+                lambda m: page.get_attribute('aria-hidden') or
+                not page.is_displayed())
         for page in reversed(self.marionette.find_elements(
                 By.CSS_SELECTOR, '#icongrid > div')[1:]):
-            MarionetteWait(self.marionette, 30).until(
-                lambda m: page.is_displayed())
+            MarionetteWait(self.marionette, 30).until_not(
+                lambda m: page.get_attribute('aria-hidden') or
+                not page.is_displayed())
             self.logger.debug('Swiping to previous page of apps')
             action.flick(
                 page,
