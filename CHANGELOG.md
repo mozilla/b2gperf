@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.12
+* Bumped gaiatest dependency to 0.19
+* Bumped b2gpopulate dependency to 0.11
+
 ## 0.11
 * Changed homescreen pages locator to work on both 1.2 and 1.3
 * Disable the keyboard first time use screen
