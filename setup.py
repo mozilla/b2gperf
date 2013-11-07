@@ -15,9 +15,9 @@ except (OSError, IOError):
     description = ''
 
 # dependencies
-deps = ['b2gpopulate==0.10',
+deps = ['b2gpopulate==0.11',
         'datazilla>=1.2',
-        'gaiatest==0.16',
+        'gaiatest==0.19',
         'mozlog==1.3',
         'numpy==1.7.1']
 
