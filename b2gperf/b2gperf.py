@@ -72,7 +72,7 @@ class DatazillaPerfPoster(object):
                  log_level='INFO'):
         # Set up logging
         handler = mozlog.StreamHandler()
-        handler.setFormatter(B2GPerfFormatter())
+        handler.setFormatter(mozlog.MozFormatter(include_timestamp=True))
         self.logger = mozlog.getLogger(self.__class__.__name__, handler)
         self.logger.setLevel(getattr(mozlog, log_level.upper()))
 
@@ -261,19 +261,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
                 traceback.print_exc()
         if caught_exception:
             sys.exit(1)
-
-
-class B2GPerfFormatter(mozlog.MozFormatter):
-
-    def format(self, record):
-        record.message = record.getMessage()
-        import datetime
-        record.timestamp = datetime.datetime.fromtimestamp(
-            int(record.created)).strftime('%Y-%m-%d %H:%M:%S')
-        sep = ' | '
-        fmt = sep.join(['%(timestamp)s', '%(name)s', '%(levelname)s',
-                        '%(message)s'])
-        return fmt % record.__dict__
 
 
 class B2GPerfTest(object):

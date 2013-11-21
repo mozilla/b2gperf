@@ -18,7 +18,7 @@ except (OSError, IOError):
 deps = ['b2gpopulate==0.11',
         'datazilla>=1.2',
         'gaiatest==0.19',
-        'mozlog==1.3',
+        'mozlog>=1.4',
         'numpy==1.7.1']
 
 setup(name='b2gperf',
