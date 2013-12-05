@@ -3,10 +3,12 @@
 b2gperf is a tool for testing the performance of
 [Firefox OS](https://developer.mozilla.org/en-US/docs/Mozilla/Firefox_OS).
 
-## Requirements
+## Prerequisites
 
-Your device must be running a build of Firefox OS with
-[Marionette](https://developer.mozilla.org/docs/Marionette) enabled.
+You will need a
+[Marionette enabled Firefox build](https://developer.mozilla.org/en-US/docs/Marionette/Builds)
+that you can
+[successfully connect to](https://developer.mozilla.org/en-US/docs/Marionette/Connecting_to_B2G).
 
 ## Installation
 
