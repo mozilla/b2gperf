@@ -208,7 +208,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.ancillary_data['settle_time'] = self.settle_time
 
     def measure_app_perf(self, app_names):
-        b2gpopulate = B2GPopulate(self.marionette)
         caught_exception = False
         self.marionette.set_script_timeout(60000)
         self.marionette.set_search_timeout(60000)
@@ -249,8 +248,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
             test = test_class(self.marionette, app_name, self.logger,
                               self.iterations, self.delay, self.device,
-                              self.restart, self.settle_time, self.testvars,
-                              b2gpopulate)
+                              self.restart, self.settle_time, self.testvars)
             try:
                 test.run()
 
@@ -277,7 +275,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
 class B2GPerfTest(object):
 
     def __init__(self, marionette, app_name, logger, iterations, delay,
-                 device, restart, settle_time, testvars, b2gpopulate):
+                 device, restart, settle_time, testvars):
         self.marionette = marionette
         self.app_name = app_name
         self.logger = logger
@@ -288,7 +286,7 @@ class B2GPerfTest(object):
         self.settle_time = settle_time
         self.testvars = testvars
         self.requires_connection = False
-        self.b2gpopulate = b2gpopulate
+        self.b2gpopulate = B2GPopulate(self.marionette)
 
     def connect_to_network(self):
         while not self.device.is_online:
