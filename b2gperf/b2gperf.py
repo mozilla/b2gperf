@@ -121,6 +121,19 @@ class DatazillaPerfPoster(object):
                 self.logger.warn('Unable to get revisions from sources')
                 pass
 
+            self.logger.debug('Getting build properties')
+            build_props = self.device.manager.pullFile('/system/build.prop')
+            desired_props = ('ro.build.version.incremental',
+                             'ro.build.version.release',
+                             'ro.build.date.utc')
+            for line in build_props.split('\n'):
+                if not line.strip().startswith('#') and '=' in line:
+                    name, value = [s.strip() for s in line.split('=', 1)]
+                    if name in desired_props:
+                        self.logger.debug('Build property: %s (%s)' % (
+                            name, value))
+                        self.ancillary_data[name] = value
+
         self.required = {
             'gaia revision': self.ancillary_data.get('gaia_revision'),
             'gecko revision': self.ancillary_data.get('gecko_revision'),
