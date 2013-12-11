@@ -89,21 +89,19 @@ class DatazillaPerfPoster(object):
 
         if self.device.is_android_build:
             self.logger.debug('Getting gaia, gecko and build revisions')
-            try:
-                app_zip = self.device.manager.pullFile(
-                    '/data/local/webapps/settings.gaiamobile.org/'
-                    'application.zip')
-                zip_file = zipfile.ZipFile(StringIO(app_zip))
-                with zip_file.open('resources/gaia_commit.txt') as f:
-                    gaia_revision = f.read().splitlines()[0]
-                    self.logger.debug('Gaia revision: %s' % gaia_revision)
-                    self.ancillary_data['gaia_revision'] = gaia_revision
-
-            except zipfile.BadZipfile:
+            for path in ['/system/b2g', '/data/local']:
+                path += '/webapps/settings.gaiamobile.org/application.zip'
+                if self.device.manager.fileExists(path):
+                    zip_file = zipfile.ZipFile(StringIO(
+                        self.device.manager.pullFile(path)))
+                    with zip_file.open('resources/gaia_commit.txt') as f:
+                        gaia_revision = f.read().splitlines()[0]
+                        self.logger.debug('Gaia revision: %s' % gaia_revision)
+                        self.ancillary_data['gaia_revision'] = gaia_revision
+                    break
+            else:
                 self.logger.warn('application.zip does not exist, perhaps '
                                  'gaia has not been flashed to the device')
-                pass
-
             try:
                 sources_xml = sources and xml.dom.minidom.parse(sources) or \
                     xml.dom.minidom.parseString(self.device.manager.catFile(
