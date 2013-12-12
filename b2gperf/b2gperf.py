@@ -203,6 +203,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.settle_time = kwargs.pop('settle_time')
         self.test_type = kwargs.pop('test_type')
         self.testvars = kwargs.pop('testvars', {})
+        self.reset = kwargs.pop('reset')
 
         DatazillaPerfPoster.__init__(self, *args, **kwargs)
         # Add various attributes to the report
@@ -251,7 +252,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
 
             test = test_class(self.marionette, app_name, self.logger,
                               self.iterations, self.delay, self.device,
-                              self.restart, self.settle_time, self.testvars)
+                              self.restart, self.settle_time, self.testvars,
+                              self.reset)
             try:
                 test.run()
 
@@ -278,7 +280,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
 class B2GPerfTest(object):
 
     def __init__(self, marionette, app_name, logger, iterations, delay,
-                 device, restart, settle_time, testvars):
+                 device, restart, settle_time, testvars, reset):
         self.marionette = marionette
         self.app_name = app_name
         self.logger = logger
@@ -288,6 +290,7 @@ class B2GPerfTest(object):
         self.restart = restart
         self.settle_time = settle_time
         self.testvars = testvars
+        self.reset = reset
         self.requires_connection = False
         self.b2gpopulate = B2GPopulate(self.marionette)
 
@@ -313,6 +316,18 @@ class B2GPerfTest(object):
         if self.restart:
             self.logger.debug('Stopping B2G')
             self.device.stop_b2g()
+
+        if self.reset:
+            self.logger.debug('Removing persistent storage')
+            self.device.manager.removeDir('/data/local/storage/persistent')
+            self.device.manager.removeDir('/data/local/indexedDB')
+
+            self.logger.debug('Removing profile')
+            self.device.manager.removeDir('/data/b2g/mozilla')
+
+            self.logger.debug('Removing files from sdcard')
+            for item in self.device.manager.listFiles('/sdcard/'):
+                self.device.manager.removeDir('/'.join(['/sdcard', item]))
 
         self.logger.debug('Populating databases')
         self.populate_databases()
@@ -897,7 +912,14 @@ def cli():
                       action='store',
                       dest='testvars',
                       metavar='str',
-                      help='path to a json file with any test data required')
+                      help='path to a json file with any test data required'),
+    parser.add_option('--reset',
+                      action='store_true',
+                      dest='reset',
+                      default=False,
+                      help='reset the target to a clean state between tests '
+                           '(requires restart). WARNING: any personal data '
+                           'will be removed!')
     options, args = parser.parse_args()
 
     if not args:
@@ -922,6 +944,9 @@ def cli():
         with open(options.testvars) as f:
             testvars = json.loads(f.read())
 
+    if options.reset and not options.restart:
+        raise B2GPerfError('--reset requires restart')
+
     datazilla_config = parser.datazilla_config(options)
 
     # TODO command line option for address
@@ -936,7 +961,8 @@ def cli():
                             restart=options.restart,
                             settle_time=options.settle_time,
                             test_type=options.test_type,
-                            testvars=testvars)
+                            testvars=testvars,
+                            reset=options.reset)
     b2gperf.measure_app_perf(args)
 
 
