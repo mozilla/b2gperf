@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.13
+* Bumped gaiatest dependency to 0.20
+* Bumped b2gpopulate dependency to 0.12
+* Get Gaia revision from new app install location
+* Submit device firmware details to DataZilla
+
 ## 0.12
 * Bumped gaiatest dependency to 0.19
 * Bumped b2gpopulate dependency to 0.11
