@@ -653,8 +653,7 @@ class B2GPerfScrollHomescreenTest(B2GPerfScrollTest):
         pass
 
     def before_scroll(self):
-        self.app = gaiatest.GaiaApp(frame=self.marionette.find_element(
-            *self.homescreen._homescreen_iframe_locator))
+        self.app = gaiatest.GaiaApp(frame=self.apps.displayed_app.frame)
         self.marionette.switch_to_frame(self.app.frame)
 
     def scroll(self):
