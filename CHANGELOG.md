@@ -1,5 +1,9 @@
 # Change Log
 
+## NOTICE
+This change log will no longer be updated. Please see the repository commit
+history for details of the changes.
+
 ## 0.13
 * Bumped gaiatest dependency to 0.20
 * Bumped b2gpopulate dependency to 0.12
