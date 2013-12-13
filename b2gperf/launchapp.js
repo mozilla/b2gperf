@@ -3,11 +3,11 @@
 function launch_app(app_name) {
   GaiaApps.locateWithName(app_name, function(app, name, entry) {
     if (app) {
-      let windowManager = window.wrappedJSObject.WindowManager;
-      let runningApps = windowManager.getRunningApps();
+      let manager = window.wrappedJSObject.AppWindowManager || window.wrappedJSObject.WindowManager;
+      let runningApps = manager.getRunningApps();
       let origin = GaiaApps.getRunningAppOrigin(name);
 
-      if (windowManager.getDisplayedApp() == origin) {
+      if (manager.getDisplayedApp() == origin) {
         console.error("app with origin '" + origin + "' is already running");
         marionetteScriptFinished(false);
       }
@@ -17,10 +17,12 @@ function launch_app(app_name) {
           waitFor(
             function() {
               let app = runningApps[origin];
-              let result = {frame: app.frame.firstChild,
-                src: app.iframe.src,
+              let result = {
+                frame: (app.browser) ? app.browser.element : app.frame.firstChild,
+                src: (app.browser) ? app.browser.element.src : app.iframe.src,
                 name: app.name,
-                origin: origin};
+                origin: origin
+              };
               let load_type = (aEvent.detail.type === 'w') ? 'warm' : 'cold';
               result[load_type + '_load_time'] = aEvent.detail.time;
               marionetteScriptFinished(result);

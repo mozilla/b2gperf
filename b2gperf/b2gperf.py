@@ -25,6 +25,7 @@ from marionette import Marionette
 from marionette.by import By
 from marionette.errors import MarionetteException
 from marionette.gestures import smooth_scroll
+import mozdevice
 import mozlog
 import numpy
 
@@ -86,6 +87,8 @@ class DatazillaPerfPoster(object):
         self.submit_report = True
         self.ancillary_data = {}
         self.device = gaiatest.GaiaDevice(self.marionette)
+        dm = mozdevice.DeviceManagerADB()
+        self.device.add_device_manager(dm)
 
         if self.device.is_android_build:
             self.logger.debug('Getting gaia, gecko and build revisions')
