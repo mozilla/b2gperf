@@ -145,7 +145,7 @@ class DatazillaPerfPoster(object):
             'branch': datazilla_config['branch'],
             'oauth key': datazilla_config['oauth_key'],
             'oauth secret': datazilla_config['oauth_secret'],
-            'machine name': mac_address or 'unknown',
+            'machine name': datazilla_config['machine_name'] or mac_address,
             'device name': datazilla_config['device_name'],
             'os version': settings.get('deviceinfo.os'),
             'id': settings.get('deviceinfo.platform_build_id')}
@@ -834,6 +834,11 @@ class dzOptionParser(OptionParser):
                         dest='datazilla_key',
                         metavar='str',
                         help='oauth key for datazilla server')
+        self.add_option('--dz-machine',
+                        action='store',
+                        dest='datazilla_machine_name',
+                        metavar='str',
+                        help='datazilla machine name')
         self.add_option('--dz-secret',
                         action='store',
                         dest='datazilla_secret',
@@ -857,6 +862,7 @@ class dzOptionParser(OptionParser):
             'host': datazilla_url.hostname,
             'project': options.datazilla_project,
             'branch': options.datazilla_branch,
+            'machine_name': options.datazilla_machine_name,
             'device_name': options.datazilla_device_name,
             'oauth_key': options.datazilla_key,
             'oauth_secret': options.datazilla_secret}
