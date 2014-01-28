@@ -19,7 +19,8 @@ deps = ['b2gpopulate==0.13',
         'datazilla>=1.2',
         'gaiatest==0.21.2',
         'mozdevice>=0.30',
-        'mozlog>=1.4',
+        'mozlog>=1.5',
+        'mozversion>=0.1',
         'numpy==1.7.1']
 
 setup(name='b2gperf',

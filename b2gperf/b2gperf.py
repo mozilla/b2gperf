@@ -5,15 +5,12 @@
 # 2) adb forward tcp:2828 tcp:2828
 
 from optparse import OptionParser
-from StringIO import StringIO
 import os
 import pkg_resources
 import re
 import time
 import traceback
 from urlparse import urlparse
-import xml.dom.minidom
-import zipfile
 import sys
 
 from b2gpopulate import B2GPopulate
@@ -27,6 +24,7 @@ from marionette.errors import MarionetteException
 from marionette.gestures import smooth_scroll
 import mozdevice
 import mozlog
+import mozversion
 import numpy
 
 from wait import MarionetteWait
@@ -90,50 +88,16 @@ class DatazillaPerfPoster(object):
         dm = mozdevice.DeviceManagerADB()
         self.device.add_device_manager(dm)
 
-        if self.device.is_android_build:
-            self.logger.debug('Getting gaia, gecko and build revisions')
-            for path in ['/system/b2g', '/data/local']:
-                path += '/webapps/settings.gaiamobile.org/application.zip'
-                if self.device.manager.fileExists(path):
-                    zip_file = zipfile.ZipFile(StringIO(
-                        self.device.manager.pullFile(path)))
-                    with zip_file.open('resources/gaia_commit.txt') as f:
-                        gaia_revision = f.read().splitlines()[0]
-                        self.logger.debug('Gaia revision: %s' % gaia_revision)
-                        self.ancillary_data['gaia_revision'] = gaia_revision
-                    break
-            else:
-                self.logger.warn('application.zip does not exist, perhaps '
-                                 'gaia has not been flashed to the device')
-            try:
-                sources_xml = sources and xml.dom.minidom.parse(sources) or \
-                    xml.dom.minidom.parseString(self.device.manager.catFile(
-                        'system/sources.xml'))
-                for element in sources_xml.getElementsByTagName('project'):
-                    path = element.getAttribute('path')
-                    revision = element.getAttribute('revision')
-                    if not self.ancillary_data.get('gaia_revision') and \
-                            path in 'gaia':
-                        self.ancillary_data['gaia_revision'] = revision
-                    if path in ['gecko', 'build']:
-                        self.ancillary_data['_'.join(
-                            [path, 'revision'])] = revision
-            except:
-                self.logger.warn('Unable to get revisions from sources')
-                pass
-
-            self.logger.debug('Getting build properties')
-            build_props = self.device.manager.pullFile('/system/build.prop')
-            desired_props = ('ro.build.version.incremental',
-                             'ro.build.version.release',
-                             'ro.build.date.utc')
-            for line in build_props.split('\n'):
-                if not line.strip().startswith('#') and '=' in line:
-                    name, value = [s.strip() for s in line.split('=', 1)]
-                    if name in desired_props:
-                        self.logger.debug('Build property: %s (%s)' % (
-                            name, value))
-                        self.ancillary_data[name] = value
+        version = mozversion.get_version(sources=sources, dm_type='adb')
+        self.ancillary_data['build_revision'] = version.get('build_changeset')
+        self.ancillary_data['gaia_revision'] = version.get('gaia_changeset')
+        self.ancillary_data['gecko_revision'] = version.get('gecko_changeset')
+        self.ancillary_data['ro.build.version.incremental'] = version.get(
+            'device_firmware_version_incremental')
+        self.ancillary_data['ro.build.version.release'] = version.get(
+            'device_firmware_version_release')
+        self.ancillary_data['ro.build.date.utc'] = version.get(
+            'device_firmware_date')
 
         self.required = {
             'gaia revision': self.ancillary_data.get('gaia_revision'),
