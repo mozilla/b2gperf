@@ -19,6 +19,8 @@ import dzclient
 import gaiatest
 from marionette import Actions
 from marionette import Marionette
+from marionette import Wait
+from marionette import expected
 from marionette.by import By
 from marionette.errors import MarionetteException
 from marionette.gestures import smooth_scroll
@@ -26,8 +28,6 @@ import mozdevice
 import mozlog
 import mozversion
 import numpy
-
-from wait import MarionetteWait
 
 TEST_TYPES = ['startup', 'scrollfps']
 
@@ -478,7 +478,7 @@ class B2GPerfScrollTest(B2GPerfTest):
 
         self.scroll()
 
-        MarionetteWait(self.marionette, 30).until(
+        Wait(self.marionette, timeout=30).until(
             lambda m: m.execute_script(
                 'return window.wrappedJSObject.touchend;', new_sandbox=False))
 
@@ -518,7 +518,7 @@ class B2GPerfScrollBrowserTest(B2GPerfScrollTest):
         app.go_to_url('http://taskjs.org/')
         # TODO Move readyState wait into app object
         app.switch_to_content()
-        MarionetteWait(self.marionette, 30).until(
+        Wait(self.marionette, timeout=30).until(
             lambda m: m.execute_script(
                 'return window.document.readyState;',
                 new_sandbox=False) == 'complete')
@@ -543,9 +543,10 @@ class B2GPerfScrollContactsTest(B2GPerfScrollTest):
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
         self.logger.debug('Waiting for contacts to be displayed')
-        MarionetteWait(self.marionette, 240).until(
-            lambda m: m.find_element(
-                *self.contacts._contact_locator).is_displayed())
+        contact = Wait(self.marionette, timeout=240).until(
+            expected.element_present(*self.contacts._contact_locator))
+        Wait(self.marionette, timeout=30).until(
+            expected.element_displayed(contact))
 
     def populate_databases(self):
         self.b2gpopulate.populate_contacts(self.contact_count, restart=False)
@@ -566,9 +567,8 @@ class B2GPerfScrollEmailTest(B2GPerfScrollTest):
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
         self.logger.debug('Waiting for emails to be displayed')
-        MarionetteWait(self.marionette, 30).until(
-            lambda m: m.find_element(
-                By.CLASS_NAME, 'msg-header-author').is_displayed())
+        Wait(self.marionette, timeout=30).until(expected.element_displayed(
+            self.marionette.find_element(By.CLASS_NAME, 'msg-header-author')))
 
     def scroll(self):
         # TODO Needs updating/fixing once we can pre-populate emails
@@ -576,7 +576,7 @@ class B2GPerfScrollEmailTest(B2GPerfScrollTest):
             By.CLASS_NAME, 'msg-header-author')
         # We're dynamically adding these elements from a template, and the
         # first one found is blank.
-        MarionetteWait(self.marionette, 30).until(
+        Wait(self.marionette, timeout=30).until(
             lambda m: emails[0].get_attribute('innerHTML'))
         emails = self.marionette.find_elements(
             By.CLASS_NAME, 'msg-header-author')
@@ -599,13 +599,12 @@ class B2GPerfScrollGalleryTest(B2GPerfScrollTest):
         self.logger.debug('Sleep for 5 seconds to allow scan to start')
         time.sleep(5)
         self.logger.debug('Waiting for correct number of pictures')
-        MarionetteWait(self.marionette, 240).until(
+        Wait(self.marionette, timeout=240).until(
             lambda m: len(m.find_elements(
                 *self.gallery._gallery_items_locator)) == self.picture_count)
         self.logger.debug('Waiting for progress bar to be hidden')
-        MarionetteWait(self.marionette, 60).until_not(
-            lambda m: m.find_element(
-                *self.gallery._progress_bar_locator).is_displayed())
+        Wait(self.marionette, timeout=60).until(expected.element_not_displayed(
+            self.marionette.find_element(*self.gallery._progress_bar_locator)))
 
     def populate_files(self):
         self.b2gpopulate.populate_pictures(self.picture_count)
@@ -646,14 +645,14 @@ class B2GPerfScrollHomescreenTest(B2GPerfScrollTest):
                 page.size['width'] / 2,
                 page.size['width'] / 100 * 10,
                 page.size['width'] / 2, 200).perform()
-            MarionetteWait(self.marionette, 30).until(
+            Wait(self.marionette, timeout=30).until(
                 lambda m: page.get_attribute('aria-hidden') or
                 not page.is_displayed())
         for page in reversed(self.marionette.find_elements(
                 By.CSS_SELECTOR, '#icongrid > div')[1:]):
-            MarionetteWait(self.marionette, 30).until_not(
-                lambda m: page.get_attribute('aria-hidden') or
-                not page.is_displayed())
+            Wait(self.marionette, timeout=30).until(
+                lambda m: page.is_displayed() or
+                not page.get_attribute('aria-hidden'))
             self.logger.debug('Swiping to previous page of apps')
             action.flick(
                 page,
@@ -668,9 +667,10 @@ class B2GPerfScrollMessagesTest(B2GPerfScrollTest):
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
         self.logger.debug('Waiting for messages to be displayed')
-        MarionetteWait(self.marionette, 240).until(
-            lambda m: m.find_element(
-                By.CSS_SELECTOR, '#threads-container li').is_displayed())
+        Wait(self.marionette, timeout=240).until(
+            expected.element_displayed(
+                self.marionette.find_element(
+                    By.CSS_SELECTOR, '#threads-container li')))
 
     def populate_databases(self):
         self.b2gpopulate.populate_messages(200, restart=False)
@@ -701,8 +701,9 @@ class B2GPerfScrollMusicTest(B2GPerfScrollTest):
         self.logger.debug('Sleep for 5 seconds to allow scan to start')
         time.sleep(5)
         self.logger.debug('Waiting for progress bar to be hidden')
-        MarionetteWait(self.marionette, 240).until_not(
-            lambda m: m.find_element(By.ID, 'scan-progress').is_displayed())
+        Wait(self.marionette, timeout=240).until(
+            expected.element_not_displayed(
+                self.marionette.find_element(By.ID, 'scan-progress')))
 
     def populate_files(self):
         self.b2gpopulate.populate_music(
@@ -747,13 +748,13 @@ class B2GPerfScrollVideoTest(B2GPerfScrollTest):
         self.logger.debug('Sleep for 5 seconds to allow scan to start')
         time.sleep(5)
         self.logger.debug('Waiting for correct number of videos')
-        MarionetteWait(self.marionette, 120).until(
+        Wait(self.marionette, timeout=120).until(
             lambda m: len(m.find_elements(
                 By.CSS_SELECTOR,
                 '#thumbnails .thumbnail')) == self.video_count)
         self.logger.debug('Waiting for progress bar to be hidden')
-        MarionetteWait(self.marionette, 60).until_not(
-            lambda m: m.find_element(By.ID, 'throbber').is_displayed())
+        Wait(self.marionette, timeout=60).until(expected.element_not_displayed(
+            self.marionette.find_element(By.ID, 'throbber')))
 
     def populate_files(self):
         self.b2gpopulate.populate_videos(self.video_count)
