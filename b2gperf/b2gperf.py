@@ -319,7 +319,7 @@ class B2GPerfTest(object):
         self.data_layer.set_setting('keyboard.ftu.enabled', False)
 
         self.logger.debug('Unlocking device')
-        gaiatest.LockScreen(self.marionette).unlock()
+        self.device.unlock()
 
         self.logger.debug('Killing all running apps')
         self.apps.kill_all()
