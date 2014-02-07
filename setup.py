@@ -5,7 +5,7 @@
 import os
 from setuptools import setup, find_packages
 
-version = '0.15'
+version = '0.16'
 
 # get documentation from the README
 try:
@@ -15,9 +15,9 @@ except (OSError, IOError):
     description = ''
 
 # dependencies
-deps = ['b2gpopulate==0.14',
+deps = ['b2gpopulate==0.15',
         'datazilla>=1.2',
-        'gaiatest==0.21.4',
+        'gaiatest==0.21.5',
         'mozdevice>=0.30',
         'mozlog>=1.5',
         'mozversion>=0.1',
