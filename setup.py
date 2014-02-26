@@ -5,14 +5,16 @@
 import os
 from setuptools import setup, find_packages
 
-version = '0.18'
-
 # get documentation from the README
 try:
     here = os.path.dirname(os.path.abspath(__file__))
     description = file(os.path.join(here, 'README.md')).read()
 except (OSError, IOError):
     description = ''
+
+# version number
+version = {}
+execfile(os.path.join('b2gperf', 'version.py'), version)
 
 # dependencies
 deps = ['b2gpopulate==0.17',
@@ -24,7 +26,7 @@ deps = ['b2gpopulate==0.17',
         'numpy==1.7.1']
 
 setup(name='b2gperf',
-      version=version,
+      version=version['__version__'],
       description="App startup tests for B2G",
       long_description=description,
       classifiers=[],  # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
