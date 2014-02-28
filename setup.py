@@ -17,7 +17,7 @@ version = {}
 execfile(os.path.join('b2gperf', 'version.py'), version)
 
 # dependencies
-deps = ['b2gpopulate==0.17',
+deps = ['b2gpopulate==0.18',
         'datazilla>=1.2',
         'gaiatest==0.21.8',
         'mozdevice>=0.30',
