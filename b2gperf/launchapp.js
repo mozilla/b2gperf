@@ -3,11 +3,8 @@
 function launch_app(app_name) {
   GaiaApps.locateWithName(app_name, function(app, name, entry) {
     if (app) {
-      let manager = window.wrappedJSObject.AppWindowManager || window.wrappedJSObject.WindowManager;
-      let runningApps = manager.getRunningApps();
-      let origin = GaiaApps.getRunningAppOrigin(name);
-
-      if (manager.getDisplayedApp() == origin) {
+      let origin = app.origin;
+      if (GaiaApps.getActiveApp().origin == origin) {
         console.error("app with origin '" + origin + "' is already running");
         marionetteScriptFinished(false);
       }
@@ -16,20 +13,19 @@ function launch_app(app_name) {
           window.removeEventListener('apploadtime', apploadtime);
           waitFor(
             function() {
-              let app = runningApps[origin];
+              let appWindow = GaiaApps.getAppByName(name);
               let result = {
-                frame: (app.browser) ? app.browser.element : app.frame.firstChild,
-                src: (app.browser) ? app.browser.element.src : app.iframe.src,
-                name: app.name,
-                origin: origin
+                frame: (appWindow.browser) ? appWindow.browser.element : appWindow.frame.firstChild,
+                src: (appWindow.browser) ? appWindow.browser.element.src : appWindow.iframe.src,
+                name: appWindow.name,
+                origin: appWindow.origin
               };
               let load_type = (aEvent.detail.type === 'w') ? 'warm' : 'cold';
               result[load_type + '_load_time'] = aEvent.detail.time;
               marionetteScriptFinished(result);
             },
             function() {
-              origin = GaiaApps.getRunningAppOrigin(name);
-              return !!origin;
+              return GaiaApps.getActiveApp().name == name;
             }
           );
         });
