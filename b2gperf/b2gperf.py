@@ -672,10 +672,9 @@ class B2GPerfScrollMessagesTest(B2GPerfScrollTest):
     def before_scroll(self):
         B2GPerfScrollTest.before_scroll(self)
         self.logger.debug('Waiting for messages to be displayed')
-        Wait(self.marionette, timeout=240).until(
-            expected.element_displayed(
-                self.marionette.find_element(
-                    By.CSS_SELECTOR, '#threads-container li')))
+        Wait(self.marionette).until(expected.element_displayed(
+            Wait(self.marionette, timeout=240).until(expected.element_present(
+                By.CSS_SELECTOR, '#threads-container li'))))
 
     def populate_databases(self):
         self.b2gpopulate.populate_messages(200, restart=False)
