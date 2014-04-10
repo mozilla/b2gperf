@@ -175,6 +175,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.test_type = kwargs.pop('test_type')
         self.testvars = kwargs.pop('testvars', {})
         self.reset = kwargs.pop('reset')
+        self.start_timeout = kwargs.pop('start_timeout')
 
         DatazillaPerfPoster.__init__(self, *args, **kwargs)
         # Add various attributes to the report
@@ -224,7 +225,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
             test = test_class(self.marionette, app_name, self.logger,
                               self.iterations, self.delay, self.device,
                               self.restart, self.settle_time, self.testvars,
-                              self.reset)
+                              self.reset, self.start_timeout)
             try:
                 test.run()
 
@@ -251,7 +252,7 @@ class B2GPerfRunner(DatazillaPerfPoster):
 class B2GPerfTest(object):
 
     def __init__(self, marionette, app_name, logger, iterations, delay,
-                 device, restart, settle_time, testvars, reset):
+                 device, restart, settle_time, testvars, reset, start_timeout):
         self.marionette = marionette
         self.app_name = app_name
         self.logger = logger
@@ -262,6 +263,7 @@ class B2GPerfTest(object):
         self.settle_time = settle_time
         self.testvars = testvars
         self.reset = reset
+        self.start_timeout = start_timeout
         self.requires_connection = False
         self.b2gpopulate = B2GPopulate(self.marionette)
 
@@ -305,7 +307,7 @@ class B2GPerfTest(object):
 
         if self.restart:
             self.logger.debug('Starting B2G')
-            self.device.start_b2g()
+            self.device.start_b2g(self.start_timeout)
 
         self.apps = gaiatest.GaiaApps(self.marionette)
         self.data_layer = gaiatest.GaiaData(self.marionette)
@@ -877,6 +879,13 @@ def cli():
                       metavar='float',
                       help='time to wait before initial launch '
                            '(default: %default)')
+    parser.add_option('--start-timeout',
+                      action='store',
+                      type=int,
+                      dest='start_timeout',
+                      default=60,
+                      metavar='int',
+                      help='b2g start timeout in seconds (default: %default)')
     parser.add_option('--test-type',
                       action='store',
                       type='str',
@@ -939,7 +948,8 @@ def cli():
                             settle_time=options.settle_time,
                             test_type=options.test_type,
                             testvars=testvars,
-                            reset=options.reset)
+                            reset=options.reset,
+                            start_timeout=options.start_timeout)
     b2gperf.measure_app_perf(args)
 
 
