@@ -17,15 +17,15 @@ version = {}
 execfile(os.path.join('b2gperf', 'version.py'), version)
 
 # dependencies
-deps = ['b2gpopulate>=0.22',
+deps = ['b2gpopulate-v1.3',
         'datazilla>=1.2',
-        'gaiatest>=0.22',
+        'gaiatest-v1.3',
         'mozdevice>=0.30',
         'mozlog>=1.5',
         'mozversion>=0.1',
         'numpy==1.7.1']
 
-setup(name='b2gperf',
+setup(name='b2gperf-v1.3',
       version=version['__version__'],
       description="App startup tests for B2G",
       long_description=description,
