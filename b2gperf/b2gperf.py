@@ -303,9 +303,15 @@ class B2GPerfTest(object):
             self.logger.debug('Removing profile')
             self.device.manager.removeDir('/data/b2g/mozilla')
 
-            self.logger.debug('Removing files from sdcard')
-            for item in self.device.manager.listFiles('/sdcard/'):
-                self.device.manager.removeDir('/'.join(['/sdcard', item]))
+            self.logger.debug('Removing files from storage')
+            # TODO: Remove hard-coded paths once bug 1018079 is resolved
+            for path in ['/mnt/sdcard',
+                         '/mnt/extsdcard',
+                         '/storage/sdcard0',
+                         '/storage/sdcard1']:
+                if self.device.manager.dirExists(path):
+                    for item in self.device.manager.listFiles(path):
+                        self.device.manager.removeDir('/'.join([path, item]))
 
         self.logger.debug('Populating databases')
         self.populate_databases()
