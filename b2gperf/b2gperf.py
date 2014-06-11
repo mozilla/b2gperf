@@ -70,13 +70,14 @@ class MissingMetricError(B2GPerfError):
 class DatazillaPerfPoster(object):
 
     def __init__(self, marionette, datazilla_config=None, sources=None,
-                 log_level='INFO'):
+                 log_level='INFO', device_serial=None):
         # Set up logging
         handler = mozlog.StreamHandler()
         handler.setFormatter(mozlog.MozFormatter(include_timestamp=True))
         self.logger = mozlog.getLogger(self.__class__.__name__, handler)
         self.logger.setLevel(getattr(mozlog, log_level.upper()))
 
+        self.device_serial = device_serial
         self.marionette = marionette
 
         settings = gaiatest.GaiaData(self.marionette).all_settings
@@ -90,10 +91,11 @@ class DatazillaPerfPoster(object):
             'build_url': datazilla_config['build_url']}
 
         self.device = gaiatest.GaiaDevice(self.marionette)
-        dm = mozdevice.DeviceManagerADB()
+        dm = mozdevice.DeviceManagerADB(deviceSerial=self.device_serial)
         self.device.add_device_manager(dm)
 
-        version = mozversion.get_version(sources=sources, dm_type='adb')
+        version = mozversion.get_version(sources=sources, dm_type='adb',
+                                         device_serial=self.device_serial)
         self.ancillary_data['build_revision'] = version.get('build_changeset')
         self.ancillary_data['gaia_revision'] = version.get('gaia_changeset')
         self.ancillary_data['gecko_repository'] = version.get('application_repository')
@@ -230,7 +232,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
             test = test_class(self.marionette, app_name, self.logger,
                               self.iterations, self.delay, self.device,
                               self.restart, self.settle_time, self.testvars,
-                              self.reset, self.start_timeout)
+                              self.reset, self.start_timeout,
+                              self.device_serial)
             try:
                 test.run()
 
@@ -257,7 +260,8 @@ class B2GPerfRunner(DatazillaPerfPoster):
 class B2GPerfTest(object):
 
     def __init__(self, marionette, app_name, logger, iterations, delay,
-                 device, restart, settle_time, testvars, reset, start_timeout):
+                 device, restart, settle_time, testvars, reset, start_timeout,
+                 device_serial):
         self.marionette = marionette
         self.app_name = app_name
         self.logger = logger
@@ -270,7 +274,9 @@ class B2GPerfTest(object):
         self.reset = reset
         self.start_timeout = start_timeout
         self.requires_connection = False
-        self.b2gpopulate = B2GPopulate(self.marionette)
+        self.device_serial = device_serial
+        self.b2gpopulate = B2GPopulate(self.marionette,
+                                       device_serial=self.device_serial)
 
     def connect_to_network(self):
         while not self.device.is_online:
@@ -861,6 +867,17 @@ class dzOptionParser(OptionParser):
 
 def cli():
     parser = dzOptionParser(usage='%prog [options] app_name [app_name] ...')
+    parser.add_option('--address',
+                      action='store',
+                      dest='address',
+                      default='localhost:2828',
+                      metavar='str',
+                      help='address of marionette server (default: %default)')
+    parser.add_option('--device-serial',
+                      action='store',
+                      dest='device_serial',
+                      metavar='str',
+                      help='serial identifier of device to target')
     parser.add_option('--delay',
                       action='store',
                       type='float',
@@ -952,8 +969,12 @@ def cli():
 
     datazilla_config = parser.datazilla_config(options)
 
-    # TODO command line option for address
-    marionette = Marionette(host='localhost', port=2828)
+    try:
+        host, port = options.address.split(':')
+    except ValueError:
+        raise B2GPerfError('--address must be in the format host:port')
+
+    marionette = Marionette(host=host, port=int(port))
     marionette.start_session()
     b2gperf = B2GPerfRunner(marionette,
                             datazilla_config=datazilla_config,
@@ -966,7 +987,8 @@ def cli():
                             test_type=options.test_type,
                             testvars=testvars,
                             reset=options.reset,
-                            start_timeout=options.start_timeout)
+                            start_timeout=options.start_timeout,
+                            device_serial=options.device_serial)
     b2gperf.measure_app_perf(args)
 
 

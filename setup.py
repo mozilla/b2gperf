@@ -17,12 +17,12 @@ version = {}
 execfile(os.path.join('b2gperf', 'version.py'), version)
 
 # dependencies
-deps = ['b2gpopulate>=0.22',
+deps = ['b2gpopulate>=0.25',
         'datazilla>=1.2',
         'gaiatest>=0.22',
         'mozdevice>=0.30',
         'mozlog>=1.5',
-        'mozversion>=0.1',
+        'mozversion>=0.6',
         'numpy==1.7.1']
 
 setup(name='b2gperf',
