@@ -90,9 +90,8 @@ class DatazillaPerfPoster(object):
             'generated_by': 'b2gperf %s' % __version__,
             'build_url': datazilla_config['build_url']}
 
-        self.device = gaiatest.GaiaDevice(self.marionette)
         dm = mozdevice.DeviceManagerADB(deviceSerial=self.device_serial)
-        self.device.add_device_manager(dm)
+        self.device = gaiatest.GaiaDevice(self.marionette, manager=dm)
 
         version = mozversion.get_version(sources=sources, dm_type='adb',
                                          device_serial=self.device_serial)
@@ -303,11 +302,11 @@ class B2GPerfTest(object):
 
         if self.reset:
             self.logger.debug('Removing persistent storage')
-            self.device.manager.removeDir('/data/local/storage/persistent')
-            self.device.manager.removeDir('/data/local/indexedDB')
+            self.device.file_manager.remove('/data/local/storage/persistent')
+            self.device.file_manager.remove('/data/local/indexedDB')
 
             self.logger.debug('Removing profile')
-            self.device.manager.removeDir('/data/b2g/mozilla')
+            self.device.file_manager.remove('/data/b2g/mozilla')
 
             self.logger.debug('Removing files from storage')
             # TODO: Remove hard-coded paths once bug 1018079 is resolved
@@ -315,9 +314,9 @@ class B2GPerfTest(object):
                          '/mnt/extsdcard',
                          '/storage/sdcard0',
                          '/storage/sdcard1']:
-                if self.device.manager.dirExists(path):
-                    for item in self.device.manager.listFiles(path):
-                        self.device.manager.removeDir('/'.join([path, item]))
+                if self.device.file_manager.dir_exists(path):
+                    for item in self.device.file_manager.list_items(path):
+                        self.device.file_manager.remove('/'.join([path, item]))
 
         self.logger.debug('Populating databases')
         self.populate_databases()
