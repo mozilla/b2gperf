@@ -409,7 +409,7 @@ class B2GPerfLaunchTest(B2GPerfTest):
     def test(self):
         self.logger.debug("Launching '%s'" % self.app_name)
         self.result = self.marionette.execute_async_script(
-            'launch_app("%s")' % self.app_name)
+            'launch("%s")' % self.app_name)
         if not self.result:
             raise AppLaunchError()
         self.logger.debug("Killing '%s'" % self.app_name)

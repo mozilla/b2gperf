@@ -1,35 +1,36 @@
 "use strict";
 
-function launch_app(app_name) {
-  GaiaApps.locateWithName(app_name, function(app, name, entry) {
+function launch(appName) {
+  GaiaApps.locateWithName(appName, function(app, appName, launchPath, entryPoint) {
     if (app) {
       let origin = app.origin;
-      if (GaiaApps.getActiveApp().origin == origin) {
+      if (GaiaApps.getDisplayedApp().origin == origin) {
         console.error("app with origin '" + origin + "' is already running");
         marionetteScriptFinished(false);
       }
       else {
-        window.addEventListener('apploadtime', function apploadtime(aEvent) {
-          window.removeEventListener('apploadtime', apploadtime);
+        window.addEventListener('apploadtime', function appLoadTime(aEvent) {
+          window.removeEventListener('apploadtime', appLoadTime);
           waitFor(
             function() {
-              let appWindow = GaiaApps.getAppByName(name);
+              let appWindow = GaiaApps.getAppByURL(app.origin + launchPath);
               let result = {
                 frame: (appWindow.browser) ? appWindow.browser.element : appWindow.frame.firstChild,
                 src: (appWindow.browser) ? appWindow.browser.element.src : appWindow.iframe.src,
                 name: appWindow.name,
                 origin: appWindow.origin
               };
-              let load_type = (aEvent.detail.type === 'w') ? 'warm' : 'cold';
-              result[load_type + '_load_time'] = aEvent.detail.time;
+              let loadType = (aEvent.detail.type === 'w') ? 'warm' : 'cold';
+              result[loadType + '_load_time'] = aEvent.detail.time;
               marionetteScriptFinished(result);
             },
             function() {
-              return GaiaApps.getActiveApp().name == name;
+              return GaiaApps.getDisplayedApp().src == (origin + launchPath);
             }
           );
         });
-        app.launch(entry || null);
+        console.log("launching app with name '" + appName + "'");
+        app.launch(entryPoint || null);
       }
     } else {
       marionetteScriptFinished(false);
