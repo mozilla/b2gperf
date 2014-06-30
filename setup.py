@@ -42,6 +42,7 @@ setup(name='b2gperf',
       entry_points="""
       [console_scripts]
       b2gperf = b2gperf.b2gperf:cli
+      gaiaperf = b2gperf.mozperf:cli
       """,
       install_requires=deps,
       )
