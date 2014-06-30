@@ -53,7 +53,8 @@ class MozPerfHandler(DatazillaPerfPoster):
                 for item in results:
                     print item, json.dumps(results[item])
 
-if __name__ == "__main__":
+
+def cli():
     parser = dzOptionParser(usage='%prog [options] result_file')
     options, args = parser.parse_args()
 
@@ -72,3 +73,7 @@ if __name__ == "__main__":
                              datazilla_config=datazilla_config,
                              sources=options.sources)
     handler.process_results(args[0])
+
+
+if __name__ == '__main__':
+    cli()
