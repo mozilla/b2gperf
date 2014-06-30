@@ -20,29 +20,32 @@ class MozPerfHandler(DatazillaPerfPoster):
                 continue
 
             app_memory = '%s_memory' % app_name
-            results = { 'durations': {},
-                        'uss': { app_memory: [] },
-                        'pss': { app_memory: [] },
-                        'rss': { app_memory: [] },
-                        'vsize': { app_memory: [] },
-                        'system_uss': { app_memory: [] },
-                        'system_pss': { app_memory: [] },
-                        'system_rss': { app_memory: [] },
-                        'system_vsize': { app_memory: [] },
-                      }
+            results = {'durations': {},
+                       'uss': {app_memory: []},
+                       'pss': {app_memory: []},
+                       'rss': {app_memory: []},
+                       'vsize': {app_memory: []},
+                       'system_uss': {app_memory: []},
+                       'system_pss': {app_memory: []},
+                       'system_rss': {app_memory: []},
+                       'system_vsize': {app_memory: []}}
 
             for result in app_results.get('passes'):
                 metric = result['title'].strip().replace(' ', '_')
-                results['durations'].setdefault(metric, []).extend(result.get('mozPerfDurations'))
+                results['durations'].setdefault(metric, []).extend(
+                    result.get('mozPerfDurations'))
                 for perfmemory in result.setdefault('mozPerfMemory', []):
                     if perfmemory.get('app'):
                         for memory_metric in ('uss', 'pss', 'rss', 'vsize'):
                             if perfmemory['app'].get(memory_metric):
-                                results[memory_metric][app_memory].append(perfmemory['app'][memory_metric])
+                                results[memory_metric][app_memory].append(
+                                    perfmemory['app'][memory_metric])
                     if perfmemory.get('system'):
                         for memory_metric in ('uss', 'pss', 'rss', 'vsize'):
                             if perfmemory['system'].get(memory_metric):
-                                results['system_%s' % memory_metric][app_memory].append(perfmemory['system'][memory_metric])
+                                metric = results['system_%s' % memory_metric]
+                                metric[app_memory].append(
+                                    perfmemory['system'][memory_metric])
 
             if self.submit_report:
                 for item in results:
