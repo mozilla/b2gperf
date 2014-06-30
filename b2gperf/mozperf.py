@@ -3,7 +3,7 @@
 
 import json
 
-from b2gperf import dzOptionParser, DatazillaPerfPoster
+from b2gperf import dzOptionParser, DatazillaPerfPoster, B2GPerfError
 from marionette import Marionette
 
 
@@ -56,6 +56,17 @@ class MozPerfHandler(DatazillaPerfPoster):
 
 def cli():
     parser = dzOptionParser(usage='%prog [options] result_file')
+    parser.add_option('--address',
+                      action='store',
+                      dest='address',
+                      default='localhost:2828',
+                      metavar='str',
+                      help='address of marionette server (default: %default)')
+    parser.add_option('--device-serial',
+                      action='store',
+                      dest='device_serial',
+                      metavar='str',
+                      help='serial identifier of device to target')
     options, args = parser.parse_args()
 
     if not args:
@@ -67,11 +78,17 @@ def cli():
 
     datazilla_config = parser.datazilla_config(options)
 
-    marionette = Marionette(host='localhost', port=2828)
+    try:
+        host, port = options.address.split(':')
+    except ValueError:
+        raise B2GPerfError('--address must be in the format host:port')
+
+    marionette = Marionette(host=host, port=int(port))
     marionette.start_session()
     handler = MozPerfHandler(marionette,
                              datazilla_config=datazilla_config,
-                             sources=options.sources)
+                             sources=options.sources,
+                             device_serial=options.device_serial)
     handler.process_results(args[0])
 
 
