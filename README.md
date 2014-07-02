@@ -18,7 +18,7 @@ Installation is simple:
 
 If you anticipate modifying b2gperf, you can instead:
 
-    git clone git://github.com/davehunt/b2gperf.git
+    git clone git://github.com/mozilla/b2gperf.git
     cd b2gperf
     python setup.py develop
 
