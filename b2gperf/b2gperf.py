@@ -7,7 +7,6 @@
 from optparse import OptionParser
 import os
 import pkg_resources
-import re
 import time
 import traceback
 from urlparse import urlparse
@@ -17,21 +16,14 @@ from b2gpopulate import B2GPopulate
 from b2gpopulate import B2GPopulateError
 import dzclient
 import gaiatest
-from marionette import Actions
 from marionette import Marionette
-from marionette import Wait
-from marionette import expected
-from marionette.by import By
 from marionette.errors import MarionetteException
-from marionette.gestures import smooth_scroll
 import mozdevice
 import mozlog
 import mozversion
 import numpy
 
 from version import __version__
-
-TEST_TYPES = ['startup', 'scrollfps']
 
 
 class B2GPerfError(Exception):
@@ -48,11 +40,6 @@ class ExceededThresholdError(B2GPerfError):
     def __init__(self):
         Exception.__init__(
             self, 'Exceeded failure threshold for gathering results')
-
-
-class FpsError(B2GPerfError):
-    def __init__(self):
-        Exception.__init__(self, 'Error turning on fps measurement')
 
 
 class NetworkConnectionError(B2GPerfError):
@@ -179,7 +166,6 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.iterations = kwargs.pop('iterations')
         self.restart = kwargs.pop('restart')
         self.settle_time = kwargs.pop('settle_time')
-        self.test_type = kwargs.pop('test_type')
         self.testvars = kwargs.pop('testvars', {})
         self.reset = kwargs.pop('reset')
         self.start_timeout = kwargs.pop('start_timeout')
@@ -196,38 +182,16 @@ class B2GPerfRunner(DatazillaPerfPoster):
         self.marionette.set_search_timeout(60000)
 
         for app_name in app_names:
-            if self.test_type == 'startup':
-                tests = {
-                    'contacts': B2GPerfLaunchContactsTest,
-                    'gallery': B2GPerfLaunchGalleryTest,
-                    'messages': B2GPerfLaunchMessagesTest,
-                    'music': B2GPerfLaunchMusicTest,
-                    'video': B2GPerfLaunchVideoTest}
-                if app_name.lower() in tests.keys():
-                    test_class = tests[app_name.lower()]
-                else:
-                    test_class = B2GPerfLaunchTest
-            elif self.test_type == 'scrollfps':
-                tests = {
-                    'browser': B2GPerfScrollBrowserTest,
-                    'contacts': B2GPerfScrollContactsTest,
-                    'email': B2GPerfScrollEmailTest,
-                    'gallery': B2GPerfScrollGalleryTest,
-                    'homescreen': B2GPerfScrollHomescreenTest,
-                    'messages': B2GPerfScrollMessagesTest,
-                    'music': B2GPerfScrollMusicTest,
-                    'settings': B2GPerfScrollSettingsTest,
-                    'video': B2GPerfScrollVideoTest}
-                if app_name.lower() in tests.keys():
-                    test_class = tests[app_name.lower()]
-                else:
-                    self.logger.error('%s is not a valid scroll test. Please '
-                                      'select one of %s' % (app_name,
-                                                            tests.keys()))
-                    sys.exit(1)
+            tests = {
+                'contacts': B2GPerfLaunchContactsTest,
+                'gallery': B2GPerfLaunchGalleryTest,
+                'messages': B2GPerfLaunchMessagesTest,
+                'music': B2GPerfLaunchMusicTest,
+                'video': B2GPerfLaunchVideoTest}
+            if app_name.lower() in tests.keys():
+                test_class = tests[app_name.lower()]
             else:
-                self.logger.error('Invalid test type, it should be one of %s' %
-                                  TEST_TYPES)
+                test_class = B2GPerfLaunchTest
 
             test = test_class(self.marionette, app_name, self.logger,
                               self.iterations, self.delay, self.device,
@@ -447,354 +411,6 @@ class B2GPerfLaunchVideoTest(B2GPerfLaunchTest):
         self.b2gpopulate.populate_videos(100)
 
 
-class B2GPerfScrollTest(B2GPerfTest):
-
-    def __init__(self, *args, **kwargs):
-        B2GPerfTest.__init__(self, *args, **kwargs)
-        self.metrics = ['fps']
-
-    def after_scroll(self):
-        self.logger.debug("Killing '%s'" % self.app_name)
-        self.apps.kill(self.app)
-
-    def before_scroll(self):
-        self.logger.debug("Launching '%s'" % self.app_name)
-        self.app = self.apps.launch(self.app_name)
-
-    def setup(self):
-        B2GPerfTest.setup(self)
-        self.marionette.import_script(
-            pkg_resources.resource_filename(__name__, 'scrollapp.js'))
-        self.logger.debug('Enabling FPS debug')
-        self.data_layer.set_setting('debug.fps.enabled', True)
-
-    def scroll(self):
-        pass
-
-    def teardown(self):
-        B2GPerfTest.teardown(self)
-        self.logger.debug('Disabling FPS debug')
-        self.data_layer.set_setting('debug.fps.enabled', False)
-
-    def test(self):
-        period = 5000  # ms
-        sample_hz = 100
-
-        self.marionette.switch_to_frame()
-        self.logger.debug('Start measuring FPS')
-        self.result = self.marionette.execute_async_script(
-            'window.wrappedJSObject.fps = new fps_meter("%s", %d, %d); '
-            'window.wrappedJSObject.fps.start_fps();' % (
-                self.app_name, period, sample_hz))
-        if not self.result:
-            raise FpsError()
-
-        self.before_scroll()
-
-        self.marionette.switch_to_frame()
-        self.marionette.switch_to_frame(self.app.frame)
-        self.marionette.execute_script(
-            'window.addEventListener("touchend", function() { '
-            'window.wrappedJSObject.touchend = true; }, false);',
-            new_sandbox=False)
-
-        if self.device.is_android_build:
-            self.logger.debug('Clearing logcat')
-            self.device.manager.recordLogcat()
-
-        self.scroll()
-
-        Wait(self.marionette, timeout=30).until(
-            lambda m: m.execute_script(
-                'return window.wrappedJSObject.touchend;', new_sandbox=False))
-
-        if self.device.is_android_build:
-            self.logger.debug('Getting logcat')
-            logcat = self.device.manager.getLogcat(['Gecko:I', '*:S'], 'brief')
-
-        self.after_scroll()
-
-        self.marionette.switch_to_frame()
-        self.logger.debug('Stop measuring FPS')
-        self.result = self.marionette.execute_script(
-            'return window.wrappedJSObject.fps.stop_fps();')
-
-        if logcat:
-            hwc_fps_regex = re.compile('HWComposer: FPS is ([\d\.]+)')
-            values = [float(hwc_fps_regex.search(line).group(1)) for
-                      line in logcat if hwc_fps_regex.search(line)]
-            if len(values) > 0:
-                self.logger.debug('HWComposer FPS values: %s' % ','.join(
-                    map(str, values)))
-                if 'fps_hwc' not in self.metrics:
-                    self.metrics.append('fps_hwc')
-                self.result['fps_hwc'] = numpy.median(values)
-
-
-class B2GPerfScrollBrowserTest(B2GPerfScrollTest):
-
-    def __init__(self, *args, **kwargs):
-        B2GPerfScrollTest.__init__(self, *args, **kwargs)
-        self.requires_connection = True
-
-    def before_scroll(self):
-        B2GPerfScrollTest.before_scroll(self)
-        from gaiatest.apps.browser.app import Browser
-        app = Browser(self.marionette)
-        app.go_to_url('http://taskjs.org/')
-        # TODO Move readyState wait into app object
-        app.switch_to_content()
-        Wait(self.marionette, timeout=30).until(
-            lambda m: m.execute_script(
-                'return window.document.readyState;',
-                new_sandbox=False) == 'complete')
-
-    def scroll(self):
-        start = self.marionette.execute_script(
-            'return window.wrappedJSObject.Browser.currentTab.dom;',
-            new_sandbox=False)
-        self.logger.debug('Scrolling through browser content')
-        smooth_scroll(self.marionette, start, 'y', -1, 2000,
-                      increments=20, scroll_back=True)
-
-
-class B2GPerfScrollContactsTest(B2GPerfScrollTest):
-
-    def __init__(self, *args, **kwargs):
-        B2GPerfScrollTest.__init__(self, *args, **kwargs)
-        from gaiatest.apps.contacts.app import Contacts
-        self.contacts = Contacts(self.marionette)
-        self.contact_count = 200
-
-    def before_scroll(self):
-        B2GPerfScrollTest.before_scroll(self)
-        self.logger.debug('Waiting for contacts to be displayed')
-        contact = Wait(self.marionette, timeout=240).until(
-            expected.element_present(*self.contacts._contact_locator))
-        Wait(self.marionette, timeout=30).until(
-            expected.element_displayed(contact))
-
-    def populate_databases(self):
-        self.b2gpopulate.populate_contacts(self.contact_count, restart=False)
-
-    def scroll(self):
-        start = self.marionette.find_element(*self.contacts._contact_locator)
-        distance = self.marionette.execute_script(
-            'return arguments[0].scrollHeight',
-            script_args=[self.marionette.find_element(By.ID,
-                                                      'groups-container')])
-        self.logger.debug('Scrolling through contacts')
-        smooth_scroll(self.marionette, start, 'y', -1, distance,
-                      increments=20, scroll_back=True)
-
-
-class B2GPerfScrollEmailTest(B2GPerfScrollTest):
-
-    def before_scroll(self):
-        B2GPerfScrollTest.before_scroll(self)
-        self.logger.debug('Waiting for emails to be displayed')
-        Wait(self.marionette, timeout=30).until(expected.element_displayed(
-            self.marionette.find_element(By.CLASS_NAME, 'msg-header-author')))
-
-    def scroll(self):
-        # TODO Needs updating/fixing once we can pre-populate emails
-        emails = self.marionette.find_elements(
-            By.CLASS_NAME, 'msg-header-author')
-        # We're dynamically adding these elements from a template, and the
-        # first one found is blank.
-        Wait(self.marionette, timeout=30).until(
-            lambda m: emails[0].get_attribute('innerHTML'))
-        emails = self.marionette.find_elements(
-            By.CLASS_NAME, 'msg-header-author')
-        self.logger.debug('Scrolling through emails')
-        smooth_scroll(self.marionette, emails[0], 'y', -1, 2000,
-                      increments=20, scroll_back=True)
-
-
-class B2GPerfScrollGalleryTest(B2GPerfScrollTest):
-
-    def __init__(self, *args, **kwargs):
-        B2GPerfScrollTest.__init__(self, *args, **kwargs)
-        from gaiatest.apps.gallery.app import Gallery
-        self.gallery = Gallery(self.marionette)
-        self.picture_count = 50
-
-    def before_scroll(self):
-        B2GPerfScrollTest.before_scroll(self)
-        # TODO Replace with a suitable wait
-        self.logger.debug('Sleep for 5 seconds to allow scan to start')
-        time.sleep(5)
-        self.logger.debug('Waiting for correct number of pictures')
-        Wait(self.marionette, timeout=240).until(
-            lambda m: len(m.find_elements(
-                *self.gallery._gallery_items_locator)) == self.picture_count)
-        self.logger.debug('Waiting for progress bar to be hidden')
-        Wait(self.marionette, timeout=60).until(expected.element_not_displayed(
-            self.marionette.find_element(*self.gallery._progress_bar_locator)))
-
-    def populate_files(self):
-        self.b2gpopulate.populate_pictures(self.picture_count)
-
-    def scroll(self):
-        start = self.marionette.find_element(
-            *self.gallery._gallery_items_locator)
-        distance = self.marionette.execute_script(
-            'return arguments[0].scrollHeight',
-            script_args=[self.marionette.find_element(By.ID, 'thumbnails')])
-        self.logger.debug('Scrolling through gallery thumbnails')
-        smooth_scroll(self.marionette, start, 'y', -1, distance,
-                      increments=20, scroll_back=True)
-
-
-class B2GPerfScrollHomescreenTest(B2GPerfScrollTest):
-
-    def __init__(self, *args, **kwargs):
-        B2GPerfScrollTest.__init__(self, *args, **kwargs)
-        from gaiatest.apps.homescreen.app import Homescreen
-        self.homescreen = Homescreen(self.marionette)
-
-    def after_scroll(self):
-        pass
-
-    def before_scroll(self):
-        self.app = gaiatest.GaiaApp(frame=self.apps.displayed_app.frame)
-        self.marionette.switch_to_frame(self.app.frame)
-
-    def scroll(self):
-        action = Actions(self.marionette)
-        for page in self.marionette.find_elements(By.CSS_SELECTOR,
-                                                  '#icongrid > div')[:-1]:
-            self.logger.debug('Swiping to next page of apps')
-            action.flick(
-                page,
-                page.size['width'] / 100 * 90,
-                page.size['width'] / 2,
-                page.size['width'] / 100 * 10,
-                page.size['width'] / 2, 200).perform()
-            Wait(self.marionette, timeout=30).until(
-                lambda m: page.get_attribute('aria-hidden') or
-                not page.is_displayed())
-        for page in reversed(self.marionette.find_elements(
-                By.CSS_SELECTOR, '#icongrid > div')[1:]):
-            Wait(self.marionette, timeout=30).until(
-                lambda m: page.is_displayed() or
-                not page.get_attribute('aria-hidden'))
-            self.logger.debug('Swiping to previous page of apps')
-            action.flick(
-                page,
-                page.size['width'] / 100 * 10,
-                page.size['width'] / 2,
-                page.size['width'] / 100 * 90,
-                page.size['width'] / 2, 200).perform()
-
-
-class B2GPerfScrollMessagesTest(B2GPerfScrollTest):
-
-    def before_scroll(self):
-        B2GPerfScrollTest.before_scroll(self)
-        self.logger.debug('Waiting for messages to be displayed')
-        Wait(self.marionette).until(expected.element_displayed(
-            Wait(self.marionette, timeout=240).until(expected.element_present(
-                By.CSS_SELECTOR, '#threads-container li'))))
-
-    def populate_databases(self):
-        self.b2gpopulate.populate_messages(200, restart=False)
-
-    def scroll(self):
-        start = self.marionette.find_element(
-            By.CSS_SELECTOR, '#threads-container li')
-        distance = self.marionette.execute_script(
-            'return arguments[0].scrollHeight',
-            script_args=[self.marionette.find_element(
-                By.ID, 'threads-container')])
-        self.logger.debug('Scrolling through messages')
-        smooth_scroll(self.marionette, start, 'y', -1, distance,
-                      increments=20, scroll_back=True)
-
-
-class B2GPerfScrollMusicTest(B2GPerfScrollTest):
-
-    def __init__(self, *args, **kwargs):
-        B2GPerfScrollTest.__init__(self, *args, **kwargs)
-        self.music_count = 200
-        self.tracks_per_album = 10
-        self.album_count = self.music_count / self.tracks_per_album
-
-    def before_scroll(self):
-        B2GPerfScrollTest.before_scroll(self)
-        # TODO Replace with a suitable wait
-        self.logger.debug('Sleep for 5 seconds to allow scan to start')
-        time.sleep(5)
-        self.logger.debug('Waiting for progress bar to be hidden')
-        Wait(self.marionette, timeout=240).until(
-            expected.element_not_displayed(
-                self.marionette.find_element(By.ID, 'scan-progress')))
-
-    def populate_files(self):
-        self.b2gpopulate.populate_music(
-            self.music_count, tracks_per_album=self.tracks_per_album)
-
-    def scroll(self):
-        start = self.marionette.find_element(
-            By.CSS_SELECTOR, '#views-tiles .tile')
-        distance = self.marionette.execute_script(
-            'return arguments[0].scrollHeight',
-            script_args=[self.marionette.find_element(By.ID, 'views-tiles')])
-        self.logger.debug('Scrolling through music albums')
-        smooth_scroll(self.marionette, start, 'y', -1, distance,
-                      increments=20, scroll_back=True)
-
-
-class B2GPerfScrollSettingsTest(B2GPerfScrollTest):
-
-    def scroll(self):
-        start = self.marionette.find_element(
-            By.CSS_SELECTOR, '#root .menu-item')
-        distance = self.marionette.execute_script(
-            'return arguments[0].scrollHeight',
-            script_args=[self.marionette.find_element(
-                By.CSS_SELECTOR, '#root > div')])
-        self.logger.debug('Scrolling through settings')
-        smooth_scroll(self.marionette, start, 'y', -1, distance,
-                      increments=20, scroll_back=True)
-
-
-class B2GPerfScrollVideoTest(B2GPerfScrollTest):
-
-    def __init__(self, *args, **kwargs):
-        B2GPerfScrollTest.__init__(self, *args, **kwargs)
-        from gaiatest.apps.videoplayer.app import VideoPlayer
-        self.video = VideoPlayer(self.marionette)
-        self.video_count = 50
-
-    def before_scroll(self):
-        B2GPerfScrollTest.before_scroll(self)
-        # TODO Replace with a suitable wait
-        self.logger.debug('Sleep for 5 seconds to allow scan to start')
-        time.sleep(5)
-        self.logger.debug('Waiting for correct number of videos')
-        Wait(self.marionette, timeout=120).until(
-            lambda m: len(m.find_elements(
-                By.CSS_SELECTOR,
-                '#thumbnails .thumbnail')) == self.video_count)
-        self.logger.debug('Waiting for progress bar to be hidden')
-        Wait(self.marionette, timeout=60).until(expected.element_not_displayed(
-            self.marionette.find_element(By.ID, 'throbber')))
-
-    def populate_files(self):
-        self.b2gpopulate.populate_videos(self.video_count)
-
-    def scroll(self):
-        start = self.marionette.find_element(
-            By.CSS_SELECTOR, '#thumbnails .thumbnail')
-        distance = self.marionette.execute_script(
-            'return arguments[0].scrollHeight',
-            script_args=[self.marionette.find_element(By.ID, 'thumbnails')])
-        self.logger.debug('Scrolling through video thumbnails')
-        smooth_scroll(self.marionette, start, 'y', -1, distance,
-                      increments=20, scroll_back=True)
-
-
 class dzOptionParser(OptionParser):
     def __init__(self, **kwargs):
         OptionParser.__init__(self, **kwargs)
@@ -920,14 +536,6 @@ def cli():
                       default=60,
                       metavar='int',
                       help='b2g start timeout in seconds (default: %default)')
-    parser.add_option('--test-type',
-                      action='store',
-                      type='str',
-                      dest='test_type',
-                      default='startup',
-                      metavar='str',
-                      help='type of test to run, valid types are: %s '
-                           '(default: startup)' % TEST_TYPES),
     parser.add_option('--testvars',
                       action='store',
                       dest='testvars',
@@ -949,10 +557,6 @@ def cli():
     if len(args) < 1:
         parser.print_usage()
         print 'must specify at least one app name'
-        parser.exit()
-
-    if options.test_type not in TEST_TYPES:
-        print 'Invalid test type. Test type must be one of %s' % TEST_TYPES
         parser.exit()
 
     testvars = {}
@@ -984,7 +588,6 @@ def cli():
                             iterations=options.iterations,
                             restart=options.restart,
                             settle_time=options.settle_time,
-                            test_type=options.test_type,
                             testvars=testvars,
                             reset=options.reset,
                             start_timeout=options.start_timeout,
