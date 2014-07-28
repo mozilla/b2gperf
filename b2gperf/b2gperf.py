@@ -276,6 +276,7 @@ class B2GPerfTest(object):
             # TODO: Remove hard-coded paths once bug 1018079 is resolved
             for path in ['/mnt/sdcard',
                          '/mnt/extsdcard',
+                         '/storage/sdcard',
                          '/storage/sdcard0',
                          '/storage/sdcard1']:
                 if self.device.file_manager.dir_exists(path):
