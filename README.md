@@ -26,7 +26,7 @@ If you anticipate modifying b2gperf, you can instead:
 
     Usage: b2gperf [options] app_name [app_name] ...
 
-    For full usage details run `b2gperf --help`.
+For full usage details run `b2gperf --help`.
 
 ## Test Variables
 
